@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: atlas_taman_gpt_db
+    environment:
+      POSTGRES_DB: atlas_taman
+      POSTGRES_USER: atlas_user
+      POSTGRES_PASSWORD: atlas_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - atlas_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: atlas_taman_gpt_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - atlas_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: atlas_taman_gpt_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@atlastaman.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - atlas_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  atlas_network:
+    driver: bridge

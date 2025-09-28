@@ -1,0 +1,51 @@
+# Variables d'environnement
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+build/
+dist/
+out/
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache
+.parcel-cache
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv
+
+# Database
+*.db
+*.sqlite
+
+# Uploads
+uploads/
+cache/
+tmp/
+
+# Backup files
+*.bak
+*.backup
