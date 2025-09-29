@@ -3,26 +3,10 @@ import { Product } from '../../types';
 
 interface ProductCardProps {
   product: Product;
-  onCompare?: (product: Product) => void;
   showDiscount?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ 
-  product, 
-  onCompare,
-  showDiscount = false 
-}) => {
-  const handleCardClick = () => {
-    window.location.href = `/product/${product.slug}`;
-  };
-
-  const handleCompareClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onCompare) {
-      onCompare(product);
-    }
-  };
-
+export const ProductCard: React.FC<ProductCardProps> = ({ product, showDiscount = false }) => {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-MA', {
       style: 'currency',
@@ -36,10 +20,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     : 0;
 
   return (
-    <div 
-      onClick={handleCardClick}
-      className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden group"
-    >
+    <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden group">
       <div className="relative h-48 bg-gray-100 overflow-hidden">
         {product.images && product.images.length > 0 ? (
           <img
@@ -66,54 +47,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
       <div className="p-4">
         {product.brand && (
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-            {product.brand}
-          </p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{product.brand}</p>
         )}
-
-        <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2 h-10">
-          {product.name}
-        </h3>
-
+        <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2 h-10">{product.name}</h3>
         <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-2xl font-bold text-blue-600">
-            {formatPrice(product.minPrice)}
-          </span>
+          <span className="text-2xl font-bold text-blue-600">{formatPrice(product.minPrice)}</span>
           {product.maxPrice > product.minPrice && (
-            <span className="text-sm text-gray-400 line-through">
-              {formatPrice(product.maxPrice)}
-            </span>
+            <span className="text-sm text-gray-400 line-through">{formatPrice(product.maxPrice)}</span>
           )}
         </div>
-
         <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-          <span className="flex items-center">
-            🏪 {product.offersCount} {product.offersCount > 1 ? 'offres' : 'offre'}
-          </span>
-          {product.offersCount > 1 && (
-            <span className="text-green-600 font-medium">
-              Comparer
-            </span>
-          )}
+          <span>🏪 {product.offersCount} {product.offersCount > 1 ? 'offres' : 'offre'}</span>
         </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={handleCardClick}
-            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            Voir les offres
-          </button>
-          {onCompare && (
-            <button
-              onClick={handleCompareClick}
-              className="bg-gray-100 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
-              title="Ajouter à la comparaison"
-            >
-              ⚖️
-            </button>
-          )}
-        </div>
+        <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+          Voir les offres
+        </button>
       </div>
     </div>
   );
