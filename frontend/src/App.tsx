@@ -1,93 +1,169 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { SearchPage } from './pages/SearchPage';
 
-function App() {
+const HomePage: React.FC = () => {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
+    }
+  };
+
+  const popularSearches = [
+    'iPhone 15',
+    'Samsung Galaxy S24',
+    'MacBook Pro',
+    'PlayStation 5',
+    'AirPods Pro',
+  ];
+
+  const categories = [
+    { name: 'Électronique', icon: '📱', slug: 'electronique', count: '2,543' },
+    { name: 'Électroménager', icon: '🏠', slug: 'electromenager', count: '1,892' },
+    { name: 'Mode', icon: '👕', slug: 'mode', count: '5,432' },
+    { name: 'Beauté', icon: '💄', slug: 'beaute', count: '987' },
+    { name: 'Sport', icon: '⚽', slug: 'sport', count: '1,234' },
+    { name: 'Maison', icon: '🏡', slug: 'maison', count: '2,156' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <header className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">AT</span>
               </div>
-            </div>
-            <div className="ml-4">
-              <h1 className="text-3xl font-bold text-gray-900">
-                🏷️ Atlas Taman GPT
-              </h1>
-              <p className="text-gray-600">
-                Comparateur de prix intelligent pour le Maroc
-              </p>
+              <div className="ml-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  🏷️ Atlas Taman GPT
+                </h1>
+              </div>
+            </Link>
+            
+            <div className="hidden md:flex items-center gap-4">
+              <Link to="/" className="text-gray-600 hover:text-blue-600">Accueil</Link>
+              <Link to="/categories" className="text-gray-600 hover:text-blue-600">Catégories</Link>
+              <Link to="/deals" className="text-gray-600 hover:text-blue-600">Bons plans</Link>
             </div>
           </div>
         </div>
       </header>
-      
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white rounded-lg shadow-xl p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              🚀 Projet généré avec ChatGPT
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gradient-to-r from-green-400 to-green-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">✅ Frontend React</h3>
-                <p className="text-green-100">Interface moderne avec TypeScript</p>
-              </div>
-              
-              <div className="bg-gradient-to-r from-blue-400 to-blue-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">⚙️ Backend Node.js</h3>
-                <p className="text-blue-100">API REST avec Express</p>
-              </div>
-              
-              <div className="bg-gradient-to-r from-purple-400 to-purple-600 rounded-lg p-6 text-white">
-                <h3 className="text-lg font-semibold mb-2">🕷️ Scrapers Python</h3>
-                <p className="text-purple-100">Collecte automatique des prix</p>
-              </div>
+
+      <section className="max-w-7xl mx-auto px-4 py-12 sm:py-16 lg:py-20">
+        <div className="text-center">
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            Trouvez les{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              meilleurs prix
+            </span>
+            {' '}au Maroc
+          </h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Comparez les prix de milliers de produits sur tous les sites marchands marocains en un seul clic
+          </p>
+
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-6">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher un produit (ex: iPhone 15, Samsung Galaxy...)"
+                className="w-full px-6 py-4 pr-32 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-blue-500 shadow-lg"
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-2 bottom-2 px-8 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+              >
+                🔍 Chercher
+              </button>
             </div>
-            
-            <div className="bg-blue-50 rounded-lg p-6 border-l-4 border-blue-400">
-              <h4 className="text-lg font-semibold text-blue-800 mb-4">
-                🛒 Marchands supportés
-              </h4>
-              <div className="flex flex-wrap gap-3">
-                {['Electroplanet', 'Jumia', 'Marjane', 'BIM', 'Decathlon', 'H&M'].map((merchant) => (
-                  <span
-                    key={merchant}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                  >
-                    {merchant}
-                  </span>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6 text-white">
-              <h4 className="text-lg font-semibold mb-3">✅ Status du projet :</h4>
-              <ul className="space-y-2">
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                  Backend API : <strong className="ml-2">🚀 RUNNING</strong>
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                  Frontend React : <strong className="ml-2">🎨 READY</strong>
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                  PostgreSQL : <strong className="ml-2">💾 CONNECTED</strong>
-                </li>
-                <li className="flex items-center">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-                  Redis Cache : <strong className="ml-2">⚡ ACTIVE</strong>
-                </li>
-              </ul>
-            </div>
+          </form>
+
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            <span className="text-sm text-gray-500">Populaire:</span>
+            {popularSearches.map((term, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setSearchQuery(term);
+                  window.location.href = `/search?q=${encodeURIComponent(term)}`;
+                }}
+                className="text-sm bg-white/50 hover:bg-white px-3 py-1 rounded-full transition-colors border border-gray-200"
+              >
+                {term}
+              </button>
+            ))}
           </div>
         </div>
-      </main>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8">
+          {[
+            { icon: '📊', label: 'Prix comparés', value: '50K+' },
+            { icon: '👥', label: 'Utilisateurs', value: '10K+' },
+            { icon: '🏪', label: 'Marchands', value: '25+' },
+            { icon: '⚡', label: 'Alertes', value: '100K+' },
+          ].map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl shadow-lg p-6 text-center">
+              <div className="text-4xl mb-2">{stat.icon}</div>
+              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+              <div className="text-sm text-gray-600">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 py-12">
+        <h3 className="text-3xl font-bold text-gray-900 text-center mb-8">
+          Explorez par catégorie
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {categories.map((category, index) => (
+            <Link
+              key={index}
+              to={`/search?category=${category.slug}`}
+              className="bg-white rounded-xl shadow-lg p-6 text-center hover:shadow-xl transition-all hover:-translate-y-1"
+            >
+              <div className="text-4xl mb-3">{category.icon}</div>
+              <h4 className="font-semibold text-gray-900 mb-1">{category.name}</h4>
+              <p className="text-xs text-gray-500">{category.count} produits</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <footer className="bg-gray-900 text-white mt-auto">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-sm text-gray-400">
+              © 2025 Atlas Taman GPT - Comparateur de prix intelligent pour le Maroc
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              🤖 Développé avec l'assistance de ChatGPT
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="*" element={<HomePage />} />
+      </Routes>
+    </Router>
   );
 }
 
