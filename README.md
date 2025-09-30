@@ -12,7 +12,7 @@
 ### Déjà disponibles
 
 - **Page d'accueil interactive** avec suggestions de recherches populaires et mise en avant du projet.
-- **Recherche de produits** sur une API Express alimentée par des données de démonstration.
+- **Recherche de produits** sur une API Express connectée à PostgreSQL via Prisma.
 - **Tri des résultats** (pertinence, prix croissant/décroissant, ordre alphabétique) directement depuis l'interface.
 - **Cartes produits détaillées** affichant prix minimum/maximum, nombre d'offres et visuels.
 - **Interface responsive** construite avec Tailwind CSS.
@@ -39,7 +39,7 @@
 ### Stack actuelle
 
 - **Frontend** : React 18, React Router DOM, TypeScript, Create React App, Tailwind CSS.
-- **Backend** : Node.js 18, Express, TypeScript (compilé avec `tsc`), gestion de la config via `dotenv`, données mockées en mémoire.
+- **Backend** : Node.js 18, Express, TypeScript (compilé avec `tsc`), Prisma Client pour PostgreSQL, gestion de la config via `dotenv`.
 - **Outils** : TSX pour le rechargement à chaud côté serveur, PostCSS & Autoprefixer pour le pipeline CSS.
 
 ### Stack envisagée
@@ -59,8 +59,8 @@
 
 2. **Configurer l'environnement**
    ```bash
-   cp .env.example .env
-   # Éditer .env avec vos configurations
+   cp backend/.env.example backend/.env
+   # Éditer backend/.env avec vos configurations (PORT, DATABASE_URL)
    ```
 
 3. **Installer les dépendances**
@@ -77,6 +77,23 @@
    ```bash
    npm run dev
    ```
+
+## 🗃️ Base de données & Prisma
+
+Une stack PostgreSQL + Prisma est désormais utilisée pour persister les produits, marchands et offres. Après avoir démarré PostgreSQL (via `docker-compose` ou votre instance locale), exécutez les commandes suivantes dans le dossier `backend` :
+
+```bash
+# Générer/mettre à jour le client Prisma
+npm run prisma:generate
+
+# Appliquer la migration initiale
+npm run prisma:migrate -- --name init
+
+# Insérer des données de démonstration (marchands marocains et offres)
+npm run db:seed
+```
+
+> ℹ️ La commande `npm run db:seed` injecte plusieurs offres issues de marchands marocains comme Electro Planet, Microchoix et Jumia afin de disposer d'un catalogue exploitable immédiatement dans le frontend.
 
 ## 📱 Accès
 
