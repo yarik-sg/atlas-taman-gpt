@@ -303,7 +303,8 @@ test('merges default headers with merchant overrides before fetching', async (t)
 
   process.env.ELECTROPLANET_SEARCH_URL = 'https://electroplanet.test/catalog';
   process.env.ELECTROPLANET_HEADERS = JSON.stringify({
-    'User-Agent': 'AtlasBot/1.0',
+    'user-agent': 'AtlasBot/1.0',
+    'accept-language': 'en-GB,en;q=0.5',
     'X-Custom-Header': 'custom',
   });
 
@@ -345,15 +346,16 @@ test('merges default headers with merchant overrides before fetching', async (t)
       ? Object.fromEntries(headersInit)
       : { ...headersInit };
 
-  assert.equal(headers['User-Agent'], 'AtlasBot/1.0');
-  assert.equal(headers['X-Custom-Header'], 'custom');
+  const normalized = Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key.toLowerCase(), value])
+  );
+
+  assert.equal(normalized['user-agent'], 'AtlasBot/1.0');
+  assert.equal(normalized['x-custom-header'], 'custom');
   assert.equal(
-    headers['Accept'],
+    normalized['accept'],
     'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
   );
-  assert.equal(
-    headers['Accept-Language'],
-    'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
-  );
-  assert.equal(headers['Referer'], 'https://electroplanet.test');
+  assert.equal(normalized['accept-language'], 'en-GB,en;q=0.5');
+  assert.equal(normalized['referer'], 'https://electroplanet.test');
 });

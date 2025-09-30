@@ -82,6 +82,17 @@
    npm run dev
    ```
 
+### Personnaliser les en-têtes HTTP pour le scraping
+
+Les connecteurs HTTP ajoutent automatiquement des en-têtes de base tels que `User-Agent`, `Accept` et `Accept-Language` afin de réduire les blocages côté marchand. Vous pouvez les surcharger (ou les vider) par marchand via les variables d'environnement `*_HEADERS` :
+
+```bash
+ELECTROPLANET_HEADERS='{"user-agent":"AtlasBot/1.0","accept-language":"en-GB,en;q=0.5"}'
+JUMIA_HEADERS='{"accept-language":""}' # désactive la valeur par défaut
+```
+
+Les clés sont fusionnées de manière insensible à la casse : toute valeur fournie remplace la valeur par défaut, tandis que les champs non définis continuent d'utiliser les en-têtes standards.
+
 ## 🗃️ Base de données & Prisma
 
 Une stack PostgreSQL + Prisma est désormais utilisée pour persister les produits, marchands et offres. Après avoir démarré PostgreSQL (via `docker-compose` ou votre instance locale), exécutez les commandes suivantes dans le dossier `backend` :

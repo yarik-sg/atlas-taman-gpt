@@ -147,6 +147,30 @@ const createDefaultHeaders = (targetUrl: string) => {
   return headers;
 };
 
+const mergeHeadersWithDefaults = (
+  defaults: Record<string, string>,
+  overrides: Record<string, string>
+) => {
+  const merged: Record<string, string> = {};
+  const overridesByLowerCase = new Map<string, string>();
+
+  for (const key of Object.keys(overrides)) {
+    overridesByLowerCase.set(key.toLowerCase(), key);
+  }
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!overridesByLowerCase.has(key.toLowerCase())) {
+      merged[key] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    merged[key] = value;
+  }
+
+  return merged;
+};
+
 export const fetchWithConfig = async (
   url: string,
   options: { headers?: Record<string, string>; timeoutMs?: number } = {}
@@ -157,10 +181,10 @@ export const fetchWithConfig = async (
     : undefined;
 
   try {
-    const mergedHeaders = {
-      ...createDefaultHeaders(url),
-      ...(options.headers ?? {}),
-    };
+    const mergedHeaders = mergeHeadersWithDefaults(
+      createDefaultHeaders(url),
+      options.headers ?? {}
+    );
 
     const fetchOptions: RequestInit = {
       headers: mergedHeaders,
