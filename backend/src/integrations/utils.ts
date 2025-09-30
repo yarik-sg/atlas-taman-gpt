@@ -266,14 +266,21 @@ export const parseAvailability = (value?: string | null) => {
     return 'unknown' as const;
   }
   const normalized = normalizeText(value);
-  if (normalized.includes('rupture') || normalized.includes('epuise') || normalized.includes('out')) {
-    return 'out_of_stock' as const;
-  }
-  if (
-    normalized.includes('indisponible') ||
-    normalized.includes('non disponible') ||
-    normalized.includes('hors stock')
-  ) {
+  const negativePhrases = [
+    'out of stock',
+    'out-of-stock',
+    'rupture de stock',
+    'en rupture de stock',
+    'en rupture',
+    'stock epuise',
+    'stock epuisee',
+    'epuise',
+    'epuisee',
+    'indisponible',
+    'non disponible',
+    'hors stock',
+  ];
+  if (negativePhrases.some((phrase) => normalized.includes(phrase))) {
     return 'out_of_stock' as const;
   }
   if (normalized.includes('stock') || normalized.includes('available') || normalized.includes('disponible')) {
