@@ -17,7 +17,7 @@ export const SearchPage: React.FC = () => {
     }
   }, []);
 
-  const searchProducts = async (query: string) => {
+  const searchProducts = async (query: string, sortParam = sortBy) => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
       setProducts([]);
@@ -27,7 +27,7 @@ export const SearchPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&sortBy=${sortBy}`);
+      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&sortBy=${sortParam}`);
       const data = await response.json();
       if (data.success) setProducts(data.data.results || []);
     } catch (error) {
@@ -59,7 +59,11 @@ export const SearchPage: React.FC = () => {
             </div>
             <select
               value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value); searchProducts(searchQuery); }}
+              onChange={(e) => {
+                const newSort = e.target.value;
+                setSortBy(newSort);
+                searchProducts(searchQuery, newSort);
+              }}
               className="border border-gray-300 rounded-md px-3 py-2 text-sm"
             >
               <option value="relevance">Pertinence</option>
