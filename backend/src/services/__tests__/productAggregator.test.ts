@@ -163,37 +163,35 @@ test('captures integration errors without stopping other connectors', async () =
 
 test('fetches offers from HTTP integrations using mocks', async (t) => {
   const electroplanetHtml = `
-    <section class="catalog">
-      <article class="product-card"
-        data-product-id="iphone-ep"
-        data-product-slug="iphone-15-pro"
-        data-product-url="/iphone-15-pro"
-        data-price="13349"
-        data-currency="MAD"
-        data-shipping-fee="0"
-        data-availability="in_stock">
-        <h3 class="product-title">Apple iPhone 15 Pro</h3>
-        <span class="product-brand">Apple</span>
-        <span class="product-category">Smartphones</span>
-        <img src="/images/iphone-15-pro.jpg" alt="Apple iPhone 15 Pro" />
-      </article>
-    </section>
+    <ul class="products list items">
+      <li class="item product product-item" data-product-id="iphone-ep" data-sku="iphone-15-pro" data-product-url="/iphone-15-pro.html">
+        <div class="product-item-info" data-product-id="iphone-ep">
+          <a class="product-item-link" href="/iphone-15-pro.html">
+            <span class="product name product-item-name">Apple iPhone 15 Pro</span>
+          </a>
+          <div class="product-brand">Apple</div>
+          <div class="product-category">Smartphones</div>
+          <div class="price-box">
+            <span class="price" data-price-currency="MAD">13 349,00 dh</span>
+          </div>
+          <div class="shipping">Livraison gratuite</div>
+          <div class="stock available">En stock</div>
+          <img class="product-image-photo" data-src="https://www.electroplanet.ma/media/catalog/product/iphone.jpg" />
+        </div>
+      </li>
+    </ul>
   `;
 
   const jumiaHtml = `
-    <section class="catalog">
-      <article class="product-card"
-        data-product-id="iphone-jumia"
-        data-product-slug="iphone-15-pro"
-        data-product-url="https://www.jumia.ma/iphone-15-pro"
-        data-price="13599"
-        data-currency="MAD"
-        data-shipping-fee="49"
-        data-availability="in_stock">
-        <h3 class="product-title">Apple iPhone 15 Pro 256GB</h3>
-        <span class="product-brand">Apple</span>
-        <span class="product-category">Smartphones</span>
-        <img src="https://www.jumia.ma/images/iphone-15-pro.jpg" alt="Apple iPhone 15 Pro" />
+    <section class="products">
+      <article class="prd _fb col c-prd" data-sku="iphone-jumia" data-url="https://www.jumia.ma/iphone-15-pro" data-brand="Apple" data-category="Smartphones">
+        <a class="core" href="/iphone-15-pro">
+          <div class="name">Apple iPhone 15 Pro 256GB</div>
+        </a>
+        <div class="prc">13 599 DH</div>
+        <div class="shp">Livraison 49 DH</div>
+        <div class="stk _available">En stock</div>
+        <img data-src="https://www.jumia.ma/images/iphone-15-pro.jpg" />
       </article>
     </section>
   `;

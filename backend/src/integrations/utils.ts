@@ -1,7 +1,4 @@
-import { parseDocument, DomUtils } from 'htmlparser2';
-import { Element } from 'domhandler';
 import { merchantProfiles } from './fixtures/merchantData';
-import { MerchantIntegration, MerchantOffer, MerchantProfile } from './types';
 
 type MerchantId = keyof typeof merchantProfiles;
 
@@ -199,33 +196,21 @@ export const parsePrice = (input?: string | null) => {
   return Number.isFinite(value) ? value : undefined;
 };
 
-const hasClass = (element: Element, className: string) => {
-  const classAttr = DomUtils.getAttributeValue(element, 'class');
-  if (!classAttr) {
-    return false;
+export const parseShippingFee = (input?: string | null) => {
+  if (!input) {
+    return undefined;
   }
-  return classAttr
-    .split(/\s+/)
-    .filter(Boolean)
-    .some((value) => value === className);
+  const price = parsePrice(input);
+  if (typeof price === 'number') {
+    return price;
+  }
+  if (/gratuit/i.test(input)) {
+    return 0;
+  }
+  return undefined;
 };
 
-const findChild = (root: Element, tagName: string, className?: string) =>
-  DomUtils.findOne(
-    (element) => {
-      if (element.name !== tagName) {
-        return false;
-      }
-      if (!className) {
-        return true;
-      }
-      return hasClass(element, className);
-    },
-    root.children,
-    true
-  );
-
-const resolveUrl = (value: string | undefined, origin: string, fallback: string) => {
+export const resolveUrl = (value: string | undefined, origin: string, fallback: string) => {
   if (!value) {
     return fallback;
   }
@@ -236,12 +221,23 @@ const resolveUrl = (value: string | undefined, origin: string, fallback: string)
   }
 };
 
-const slugify = (value: string) =>
-  normalizeText(value)
+export const slugify = (value: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const cleaned = value
+    .replace(/https?:\/\/[^/]+/gi, ' ')
+    .replace(/[?#].*$/g, ' ')
+    .replace(/\.[a-z0-9]+$/gi, ' ')
+    .replace(/[_/]+/g, ' ');
+
+  return normalizeText(cleaned)
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
+};
 
-const parseAvailability = (value?: string | null) => {
+export const parseAvailability = (value?: string | null) => {
   if (!value) {
     return 'unknown' as const;
   }
@@ -254,72 +250,6 @@ const parseAvailability = (value?: string | null) => {
   }
   return 'unknown' as const;
 };
-
-export interface ParseProductCardsOptions {
-  profile: MerchantProfile;
-  currency: string;
-  origin: string;
-}
-
-export const parseProductCards = (
-  html: string,
-  options: ParseProductCardsOptions
-): MerchantOffer[] => {
-  const document = parseDocument(html);
-  const cards = DomUtils.findAll(
-    (element) => element.name === 'article' && hasClass(element, 'product-card'),
-    document.children
-  );
-
-  const offers: MerchantOffer[] = [];
-  for (const card of cards) {
-    const productId = DomUtils.getAttributeValue(card, 'data-product-id');
-    const slugAttr = DomUtils.getAttributeValue(card, 'data-product-slug');
-    const titleFromNode = findChild(card, 'h3', 'product-title');
-    const title = titleFromNode ? DomUtils.textContent(titleFromNode).trim() : '';
-    const slug = slugAttr || slugify(title);
-    const priceAttr = DomUtils.getAttributeValue(card, 'data-price');
-    const price = parsePrice(priceAttr);
-
-    if (!productId || !slug || !title || typeof price === 'undefined') {
-      continue;
-    }
-
-    const brandNode = findChild(card, 'span', 'product-brand');
-    const categoryNode = findChild(card, 'span', 'product-category');
-    const shippingAttr = DomUtils.getAttributeValue(card, 'data-shipping-fee');
-    const shippingFee = parsePrice(shippingAttr);
-    const availabilityAttr = DomUtils.getAttributeValue(card, 'data-availability');
-    const availability = parseAvailability(availabilityAttr);
-    const currencyAttr = DomUtils.getAttributeValue(card, 'data-currency');
-
-    const imageNode = findChild(card, 'img');
-    const image = imageNode
-      ? DomUtils.getAttributeValue(imageNode, 'src') || DomUtils.getAttributeValue(imageNode, 'data-src')
-      : undefined;
-    const url = DomUtils.getAttributeValue(card, 'data-product-url');
-
-    offers.push({
-      offerId: `${options.profile.id}-${productId}`,
-      merchant: options.profile,
-      productId,
-      slug,
-      title,
-      brand: brandNode ? DomUtils.textContent(brandNode).trim() || undefined : undefined,
-      category: categoryNode ? DomUtils.textContent(categoryNode).trim() || undefined : undefined,
-      image: image ? resolveUrl(image, options.origin, options.profile.url) : undefined,
-      price,
-      currency: (currencyAttr ?? options.currency).toUpperCase(),
-      shippingFee: typeof shippingFee === 'number' ? shippingFee : undefined,
-      availability,
-      url: resolveUrl(url, options.origin, options.profile.url),
-      scrapedAt: new Date().toISOString(),
-    });
-  }
-
-  return offers;
-};
-
 export const createRateLimiter = (minimumIntervalMs: number) => {
   const lastInvocations = new Map<string, number>();
   return async (key: string) => {
@@ -334,60 +264,5 @@ export const createRateLimiter = (minimumIntervalMs: number) => {
       await delay(minimumIntervalMs - delta);
     }
     lastInvocations.set(key, Date.now());
-  };
-};
-
-export interface ProductCardIntegrationOptions {
-  merchantId: MerchantId;
-  label: string;
-  defaultSearchUrl: string;
-  defaultQueryParam?: string;
-  defaultCurrency?: string;
-}
-
-export const createProductCardIntegration = (
-  options: ProductCardIntegrationOptions
-): MerchantIntegration => {
-  const profile = merchantProfiles[options.merchantId];
-  const defaultQueryParam = options.defaultQueryParam ?? 'q';
-  const defaultCurrency = options.defaultCurrency ?? 'MAD';
-
-  return {
-    id: profile.id,
-    label: options.label,
-    profile,
-    async search(query: string) {
-      const trimmedQuery = query.trim();
-      if (!trimmedQuery) {
-        return [];
-      }
-
-      const config = getMerchantHttpConfig(options.merchantId, {
-        searchUrl: options.defaultSearchUrl,
-        queryParam: defaultQueryParam,
-        currency: defaultCurrency,
-      });
-
-      if (config.delayMs) {
-        await delay(config.delayMs);
-      }
-
-      const url = buildSearchUrl(config.searchUrl, config.queryParam, trimmedQuery, config.staticParams);
-      const response = await fetchWithConfig(url, {
-        headers: config.headers,
-        timeoutMs: config.timeoutMs,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} when fetching ${profile.id} catalogue`);
-      }
-
-      const html = await response.text();
-      return parseProductCards(html, {
-        profile,
-        currency: config.currency,
-        origin: config.origin,
-      });
-    },
   };
 };
