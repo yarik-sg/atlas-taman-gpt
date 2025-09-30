@@ -4,7 +4,7 @@ import { Product } from '../types';
 
 export const SearchPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
 
@@ -12,13 +12,22 @@ export const SearchPage: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q') || '';
     setSearchQuery(query);
-    if (query) searchProducts(query);
+    if (query) {
+      searchProducts(query);
+    }
   }, []);
 
   const searchProducts = async (query: string) => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&sortBy=${sortBy}`);
+      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}&sortBy=${sortBy}`);
       const data = await response.json();
       if (data.success) setProducts(data.data.results || []);
     } catch (error) {
