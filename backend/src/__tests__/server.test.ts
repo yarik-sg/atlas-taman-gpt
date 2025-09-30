@@ -17,23 +17,110 @@ const previousEnvValues = merchantMocks.map(({ env }) => [env, process.env[env]]
 
 const responses = new Map<string, string>();
 
-const buildHtml = (merchantId: string, price: number, shippingFee: number) => `
-  <section class="catalog">
-    <article class="product-card"
-      data-product-id="${merchantId}-iphone"
-      data-product-slug="iphone-15-pro"
-      data-product-url="/${merchantId}/iphone-15-pro"
-      data-price="${price}"
-      data-currency="MAD"
-      data-shipping-fee="${shippingFee}"
-      data-availability="in_stock">
-      <h3 class="product-title">Apple iPhone 15 Pro</h3>
-      <span class="product-brand">Apple</span>
-      <span class="product-category">Smartphones</span>
-      <img src="https://static.${merchantId}.test/iphone.jpg" alt="Apple iPhone 15 Pro" />
-    </article>
-  </section>
-`;
+const buildHtml = (merchantId: string, price: number, shippingFee: number) => {
+  const shippingText = shippingFee > 0 ? `Livraison ${shippingFee} MAD` : 'Livraison gratuite';
+
+  switch (merchantId) {
+    case 'electroplanet':
+      return `
+        <ul class="products list items">
+          <li class="item product product-item" data-product-id="${merchantId}-iphone" data-sku="iphone-15-pro" data-product-url="/${merchantId}/iphone-15-pro.html">
+            <div class="product-item-info" data-product-id="${merchantId}-iphone">
+              <a class="product-item-link" href="/${merchantId}/iphone-15-pro.html">
+                <span class="product name product-item-name">Apple iPhone 15 Pro</span>
+              </a>
+              <div class="product-brand">Apple</div>
+              <div class="product-category">Smartphones</div>
+              <div class="price-box">
+                <span class="price" data-price-currency="MAD">${price} DH</span>
+              </div>
+              <div class="shipping">${shippingText}</div>
+              <div class="stock available">Disponible</div>
+              <img class="product-image-photo" data-src="https://static.${merchantId}.test/iphone.jpg" />
+            </div>
+          </li>
+        </ul>
+      `;
+    case 'jumia':
+      return `
+        <section class="products">
+          <article class="prd _fb col c-prd" data-sku="${merchantId}-iphone" data-url="https://${merchantId}.test/iphone-15-pro" data-brand="Apple" data-category="Smartphones">
+            <a class="core" href="/${merchantId}/iphone-15-pro">
+              <div class="name">Apple iPhone 15 Pro 256GB</div>
+            </a>
+            <div class="prc">${price} DH</div>
+            <div class="shp">${shippingText}</div>
+            <div class="stk _available">En stock</div>
+            <img data-src="https://static.${merchantId}.test/iphone.jpg" />
+          </article>
+        </section>
+      `;
+    case 'marjane':
+      return `
+        <div class="product-list">
+          <div class="product-card" data-product-id="${merchantId}-iphone" data-sku="iphone-15-pro">
+            <a class="product-link" href="/${merchantId}/iphone-15-pro">
+              <h2 class="product-title">Apple iPhone 15 Pro</h2>
+            </a>
+            <div class="product-brand">Apple</div>
+            <div class="product-category">Smartphones</div>
+            <div class="price-amount">${price} MAD</div>
+            <div class="product-shipping">${shippingText}</div>
+            <div class="product-stock">Disponible</div>
+            <img data-src="https://static.${merchantId}.test/iphone.jpg" />
+          </div>
+        </div>
+      `;
+    case 'bim':
+      return `
+        <ul class="product-list">
+          <li class="product-item" data-sku="${merchantId}-iphone" data-url="/${merchantId}/iphone-15-pro">
+            <a class="product-item__title" href="/${merchantId}/iphone-15-pro">Apple iPhone 15 Pro</a>
+            <div class="product-item__brand">Apple</div>
+            <div class="product-item__category">Smartphones</div>
+            <div class="product-item__price">${price} DH</div>
+            <div class="product-item__shipping">${shippingText}</div>
+            <div class="product-item__availability">Disponible</div>
+            <img data-src="https://static.${merchantId}.test/iphone.jpg" />
+          </li>
+        </ul>
+      `;
+    case 'decathlon':
+      return `
+        <section class="plp-product-list">
+          <article class="plp-product" data-product-sku="${merchantId}-iphone" data-url="/${merchantId}/iphone-15-pro">
+            <a class="plp-product__main-link" href="/${merchantId}/iphone-15-pro">
+              <span class="plp-product__title">Apple iPhone 15 Pro</span>
+            </a>
+            <span class="plp-product__brand">Apple</span>
+            <span class="plp-product__sport">Smartphones</span>
+            <span class="plp-product-price__current">${price} DH</span>
+            <span class="plp-product__delivery">${shippingText}</span>
+            <span class="plp-product__availability">En stock</span>
+            <img data-src="https://static.${merchantId}.test/iphone.jpg" />
+          </article>
+        </section>
+      `;
+    case 'hm':
+      return `
+        <ul class="products-listing">
+          <li class="product-item" data-articlecode="${merchantId}-iphone" data-url="/${merchantId}/iphone-15-pro">
+            <a class="item-link" href="/${merchantId}/iphone-15-pro">
+              <h3 class="item-heading">Chemise en Lin Homme</h3>
+            </a>
+            <div class="item-brand">H&M</div>
+            <div class="item-category">Mode</div>
+            <div class="item-price">${price} MAD</div>
+            <div class="item-delivery">${shippingText}</div>
+            <div class="item-availability">En stock</div>
+            <img data-src="https://static.${merchantId}.test/chemise.jpg" />
+          </li>
+        </ul>
+      `;
+    default:
+      return '';
+  }
+};
 
 for (const merchant of merchantMocks) {
   process.env[merchant.env] = merchant.url;
