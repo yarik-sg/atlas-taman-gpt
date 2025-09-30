@@ -9,11 +9,21 @@
 
 ## 🚀 Fonctionnalités
 
-- **Comparaison de prix** : Recherche et compare les prix sur tous les marchands marocains
-- **Alertes de prix** : Notifications par email quand un produit baisse de prix
-- **Comparaison de produits** : Compare jusqu'à 3 produits côte à côte
-- **Bons plans** : Détection automatique des meilleures offres
-- **Interface responsive** : Optimisée pour mobile et desktop
+### Déjà disponibles
+
+- **Page d'accueil interactive** avec suggestions de recherches populaires et mise en avant du projet.
+- **Recherche de produits** sur une API Express alimentée par des données de démonstration.
+- **Tri des résultats** (pertinence, prix croissant/décroissant, ordre alphabétique) directement depuis l'interface.
+- **Cartes produits détaillées** affichant prix minimum/maximum, nombre d'offres et visuels.
+- **Interface responsive** construite avec Tailwind CSS.
+
+### Planifiées
+
+- **Comparaison multi-marchands en temps réel** sur l'ensemble des enseignes marocaines.
+- **Alertes de prix personnalisées** envoyées par email ou notifications.
+- **Comparaison avancée de produits** (jusqu'à 3 produits côte à côte).
+- **Détection automatisée des bons plans** et des promotions saisonnières.
+- **Tableau de bord utilisateurs** avec authentification et suivi des alertes.
 
 ## 🛒 Marchands supportés
 
@@ -26,21 +36,18 @@
 
 ## 🔧 Technologies
 
-### Frontend
-- **React 18** + TypeScript
-- **Tailwind CSS**
-- **Redux Toolkit**
+### Stack actuelle
 
-### Backend
-- **Node.js 18** + Express + TypeScript
-- **Prisma** ORM pour PostgreSQL
-- **Redis** pour le cache
-- **JWT** pour l'authentification
+- **Frontend** : React 18, React Router DOM, TypeScript, Create React App, Tailwind CSS.
+- **Backend** : Node.js 18, Express, TypeScript (compilé avec `tsc`), gestion de la config via `dotenv`, données mockées en mémoire.
+- **Outils** : TSX pour le rechargement à chaud côté serveur, PostCSS & Autoprefixer pour le pipeline CSS.
 
-### Scraping
-- **Python 3.11** + Scrapy
-- **BeautifulSoup4**
-- **Selenium**
+### Stack envisagée
+
+- **Base de données relationnelle** orchestrée via Prisma et PostgreSQL.
+- **Cache distribué** (Redis) pour accélérer les recherches.
+- **Authentification sécurisée** basée sur JWT et rôles utilisateurs.
+- **Pipeline de collecte** : Scraping Python (Scrapy, BeautifulSoup, Selenium) pour agréger les offres en temps réel.
 
 ## 🚀 Installation
 
@@ -76,6 +83,13 @@
 - **Frontend** : http://localhost:3000
 - **Backend API** : http://localhost:3001
 - **PgAdmin** : http://localhost:8080
+
+## 🗺️ Prochaines étapes
+
+- Finaliser l'intégration avec les premiers marchands partenaires et connecter une base de données temps réel.
+- Mettre en place le système d'alertes de prix (emails/notifications) et le tableau de bord utilisateur.
+- Déployer le pipeline de scraping Python pour enrichir automatiquement le catalogue produits.
+- Ajouter des tests end-to-end et des métriques de performance pour fiabiliser la montée en charge.
 
 ## 🤖 Développé avec ChatGPT
 
