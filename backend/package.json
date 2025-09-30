@@ -7,16 +7,17 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "build": "tsc",
-    "test": "echo \"Tests backend à implémenter\"",
+    "test": "tsc && node --test dist/**/*.test.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "lru-cache": "^10.2.0",
+    "p-limit": "^4.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
