@@ -3,7 +3,72 @@ import assert from 'node:assert/strict';
 import type { Server } from 'http';
 
 process.env.NODE_ENV = 'test';
-process.env.USE_LIVE_MERCHANT_APIS = 'false';
+
+const merchantMocks = [
+  { id: 'electroplanet', env: 'ELECTROPLANET_SEARCH_URL', url: 'https://electroplanet.test/catalog', queryKey: 'q', price: 13349, shipping: 0 },
+  { id: 'jumia', env: 'JUMIA_SEARCH_URL', url: 'https://jumia.test/search', queryKey: 'q', price: 13599, shipping: 49 },
+  { id: 'marjane', env: 'MARJANE_SEARCH_URL', url: 'https://marjane.test/search', queryKey: 'q', price: 13499, shipping: 0 },
+  { id: 'bim', env: 'BIM_SEARCH_URL', url: 'https://bim.test/recherche', queryKey: 'query', price: 13649, shipping: 0 },
+  { id: 'decathlon', env: 'DECATHLON_SEARCH_URL', url: 'https://decathlon.test/search', queryKey: 'q', price: 13999, shipping: 0 },
+  { id: 'hm', env: 'HM_SEARCH_URL', url: 'https://hm.test/search-results.html', queryKey: 'q', price: 379, shipping: 19 },
+];
+
+const previousEnvValues = merchantMocks.map(({ env }) => [env, process.env[env]] as const);
+
+const responses = new Map<string, string>();
+
+const buildHtml = (merchantId: string, price: number, shippingFee: number) => `
+  <section class="catalog">
+    <article class="product-card"
+      data-product-id="${merchantId}-iphone"
+      data-product-slug="iphone-15-pro"
+      data-product-url="/${merchantId}/iphone-15-pro"
+      data-price="${price}"
+      data-currency="MAD"
+      data-shipping-fee="${shippingFee}"
+      data-availability="in_stock">
+      <h3 class="product-title">Apple iPhone 15 Pro</h3>
+      <span class="product-brand">Apple</span>
+      <span class="product-category">Smartphones</span>
+      <img src="https://static.${merchantId}.test/iphone.jpg" alt="Apple iPhone 15 Pro" />
+    </article>
+  </section>
+`;
+
+for (const merchant of merchantMocks) {
+  process.env[merchant.env] = merchant.url;
+  const targetUrl = new URL(merchant.url);
+  targetUrl.searchParams.set(merchant.queryKey, 'iphone');
+  responses.set(targetUrl.toString(), buildHtml(merchant.id, merchant.price, merchant.shipping));
+}
+
+const originalFetch = globalThis.fetch;
+globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+  const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url);
+  if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+    return originalFetch(input as any, init);
+  }
+
+  const body = responses.get(url.toString());
+  if (!body) {
+    throw new Error(`Unexpected fetch call: ${url.toString()}`);
+  }
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html' },
+  });
+}) as typeof globalThis.fetch;
+
+test.after(async () => {
+  for (const [env, value] of previousEnvValues) {
+    if (typeof value === 'undefined') {
+      delete process.env[env];
+    } else {
+      process.env[env] = value;
+    }
+  }
+  globalThis.fetch = originalFetch;
+});
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { app } = require('../server');
