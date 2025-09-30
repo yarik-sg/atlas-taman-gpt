@@ -9,15 +9,17 @@
 
 ## 🚀 Fonctionnalités
 
-### Déjà disponibles
+### Implémentées
 
-- **Page d'accueil interactive** avec suggestions de recherches populaires et mise en avant du projet.
-- **Recherche de produits** sur une API Express connectée à PostgreSQL via Prisma.
-- **Tri des résultats** (pertinence, prix croissant/décroissant, ordre alphabétique) directement depuis l'interface.
-- **Cartes produits détaillées** affichant prix minimum/maximum, nombre d'offres et visuels.
-- **Interface responsive** construite avec Tailwind CSS.
 
-### Planifiées
+- **Page d'accueil de démonstration** avec moteur de recherche et suggestions pré-remplies pour explorer rapidement le catalogue mocké.
+- **Recherche de produits** via une API Express qui renvoie des données de démonstration (mock) selon le terme recherché.
+- **Tri des résultats** par pertinence, prix croissant/décroissant ou ordre alphabétique directement depuis l'interface React.
+- **Cartes produits** synthétiques présentant prix min/max, nombre d'offres et marchands fictifs.
+- **Interface responsive** réalisée avec Tailwind CSS et Create React App.
+
+
+### En cours de conception
 
 - **Comparaison multi-marchands en temps réel** sur l'ensemble des enseignes marocaines.
 - **Alertes de prix personnalisées** envoyées par email ou notifications.
@@ -36,13 +38,15 @@
 
 ## 🔧 Technologies
 
-### Stack actuelle
+### Actuellement utilisées
 
-- **Frontend** : React 18, React Router DOM, TypeScript, Create React App, Tailwind CSS.
-- **Backend** : Node.js 18, Express, TypeScript (compilé avec `tsc`), Prisma Client pour PostgreSQL, gestion de la config via `dotenv`.
-- **Outils** : TSX pour le rechargement à chaud côté serveur, PostCSS & Autoprefixer pour le pipeline CSS.
 
-### Stack envisagée
+- **Frontend** : React 18, React Router DOM, TypeScript, Create React App (`react-scripts`), Tailwind CSS propulsé par PostCSS et Autoprefixer, Web Vitals.
+- **Backend** : Node.js 18, Express, TypeScript compilé avec `tsc`, serveur démarré en développement avec `tsx`, configuration via `dotenv`, données produits mockées en mémoire.
+- **Outils de monorepo** : NPM Workspaces, scripts `concurrently` pour lancer front et back en parallèle, Husky prêt pour automatiser les hooks Git.
+
+
+### Vision cible
 
 - **Base de données relationnelle** orchestrée via Prisma et PostgreSQL.
 - **Cache distribué** (Redis) pour accélérer les recherches.
@@ -103,7 +107,7 @@ npm run db:seed
 
 ## 🗺️ Prochaines étapes
 
-- Finaliser l'intégration avec les premiers marchands partenaires et connecter une base de données temps réel.
+- Connecter une base de données temps réel et intégrer les premiers marchands partenaires pour remplacer les données mockées.
 - Mettre en place le système d'alertes de prix (emails/notifications) et le tableau de bord utilisateur.
 - Déployer le pipeline de scraping Python pour enrichir automatiquement le catalogue produits.
 - Ajouter des tests end-to-end et des métriques de performance pour fiabiliser la montée en charge.
