@@ -264,3 +264,98 @@ test('fetches offers from HTTP integrations using mocks', async (t) => {
   assert.equal(product.offers[1].merchant.name, 'Jumia');
   assert.equal(product.offers[1].totalPrice, 13599 + 49);
 });
+
+test('merges default headers with merchant overrides before fetching', async (t) => {
+  const electroplanetHtml = `
+    <section class="catalog">
+      <article class="product-card"
+        data-product-id="iphone-ep"
+        data-product-slug="iphone-15-pro"
+        data-product-url="/iphone-15-pro"
+        data-price="13349"
+        data-currency="MAD"
+        data-shipping-fee="0"
+        data-availability="in_stock">
+        <h3 class="product-title">Apple iPhone 15 Pro</h3>
+        <span class="product-brand">Apple</span>
+        <span class="product-category">Smartphones</span>
+        <img src="/images/iphone-15-pro.jpg" alt="Apple iPhone 15 Pro" />
+      </article>
+    </section>
+  `;
+
+  const fetchCalls: Array<{
+    input: Parameters<typeof fetch>[0];
+    init: Parameters<typeof fetch>[1];
+  }> = [];
+
+  const fetchMock: typeof fetch = async (input, init) => {
+    fetchCalls.push({ input, init });
+    return new Response(electroplanetHtml, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    });
+  };
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fetchMock;
+
+  const previousSearchUrl = process.env.ELECTROPLANET_SEARCH_URL;
+  const previousHeaders = process.env.ELECTROPLANET_HEADERS;
+
+  process.env.ELECTROPLANET_SEARCH_URL = 'https://electroplanet.test/catalog';
+  process.env.ELECTROPLANET_HEADERS = JSON.stringify({
+    'User-Agent': 'AtlasBot/1.0',
+    'X-Custom-Header': 'custom',
+  });
+
+  t.after(() => {
+    if (typeof previousSearchUrl === 'undefined') {
+      delete process.env.ELECTROPLANET_SEARCH_URL;
+    } else {
+      process.env.ELECTROPLANET_SEARCH_URL = previousSearchUrl;
+    }
+
+    if (typeof previousHeaders === 'undefined') {
+      delete process.env.ELECTROPLANET_HEADERS;
+    } else {
+      process.env.ELECTROPLANET_HEADERS = previousHeaders;
+    }
+
+    globalThis.fetch = originalFetch;
+  });
+
+  const aggregator = new ProductAggregator({
+    integrations: [electroplanetIntegration],
+    cacheTtlMs: 0,
+    rateLimitMs: 0,
+  });
+
+  const { products, errors } = await aggregator.search('iphone 15');
+
+  assert.equal(errors.length, 0);
+  assert.equal(products.length, 1);
+  assert.equal(fetchCalls.length, 1);
+
+  const [{ init }] = fetchCalls;
+  const headersInit = init?.headers;
+  assert.ok(headersInit, 'expected headers to be passed to fetch');
+
+  const headers = headersInit instanceof Headers
+    ? Object.fromEntries(headersInit.entries())
+    : Array.isArray(headersInit)
+      ? Object.fromEntries(headersInit)
+      : { ...headersInit };
+
+  assert.equal(headers['User-Agent'], 'AtlasBot/1.0');
+  assert.equal(headers['X-Custom-Header'], 'custom');
+  assert.equal(
+    headers['Accept'],
+    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+  );
+  assert.equal(
+    headers['Accept-Language'],
+    'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+  );
+  assert.equal(headers['Referer'], 'https://electroplanet.test');
+});

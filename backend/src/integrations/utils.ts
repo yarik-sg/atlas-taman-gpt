@@ -128,6 +128,28 @@ export const buildSearchUrl = (
   return url.toString();
 };
 
+const STATIC_DEFAULT_HEADERS: Readonly<Record<string, string>> = Object.freeze({
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+});
+
+const DEFAULT_REFERER_FALLBACK = 'https://atlas-taman.dev';
+
+const createDefaultHeaders = (targetUrl: string) => {
+  const headers: Record<string, string> = { ...STATIC_DEFAULT_HEADERS };
+
+  try {
+    const { origin } = new URL(targetUrl);
+    headers.Referer = origin;
+  } catch (error) {
+    headers.Referer = DEFAULT_REFERER_FALLBACK;
+  }
+
+  return headers;
+};
+
 export const fetchWithConfig = async (
   url: string,
   options: { headers?: Record<string, string>; timeoutMs?: number } = {}
@@ -138,10 +160,20 @@ export const fetchWithConfig = async (
     : undefined;
 
   try {
-    const response = await fetch(url, {
-      headers: options.headers,
-      signal: controller?.signal,
-    });
+    const mergedHeaders = {
+      ...createDefaultHeaders(url),
+      ...(options.headers ?? {}),
+    };
+
+    const fetchOptions: RequestInit = {
+      headers: mergedHeaders,
+    };
+
+    if (controller) {
+      fetchOptions.signal = controller.signal;
+    }
+
+    const response = await fetch(url, fetchOptions);
     return response;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
