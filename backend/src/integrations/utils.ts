@@ -269,6 +269,13 @@ export const parseAvailability = (value?: string | null) => {
   if (normalized.includes('rupture') || normalized.includes('epuise') || normalized.includes('out')) {
     return 'out_of_stock' as const;
   }
+  if (
+    normalized.includes('indisponible') ||
+    normalized.includes('non disponible') ||
+    normalized.includes('hors stock')
+  ) {
+    return 'out_of_stock' as const;
+  }
   if (normalized.includes('stock') || normalized.includes('available') || normalized.includes('disponible')) {
     return 'in_stock' as const;
   }
