@@ -1,13 +1,24 @@
-import { createIntegrationFromFixtures } from './utils';
+import { bimIntegration } from './bim';
+import { decathlonIntegration } from './decathlon';
+import { electroplanetIntegration } from './electroplanet';
+import { hmIntegration } from './hm';
+import { jumiaIntegration } from './jumia';
+import { marjaneIntegration } from './marjane';
 import { MerchantIntegration } from './types';
 
 export const createDefaultIntegrations = (): MerchantIntegration[] => [
-  createIntegrationFromFixtures('electroplanet', 'Electroplanet', 'https://www.electroplanet.ma/catalogsearch/result/?q='),
-  createIntegrationFromFixtures('jumia', 'Jumia', 'https://www.jumia.ma/catalog/?q='),
-  createIntegrationFromFixtures('marjane', 'Marjane', 'https://www.marjane.ma/search?q='),
-  createIntegrationFromFixtures('bim', 'BIM', 'https://www.bim.ma/recherche?query='),
-  createIntegrationFromFixtures('decathlon', 'Decathlon', 'https://www.decathlon.ma/search?q='),
-  createIntegrationFromFixtures('hm', 'H&M', 'https://www2.hm.com/fr_ma/search-results.html?q='),
+  electroplanetIntegration,
+  jumiaIntegration,
+  marjaneIntegration,
+  bimIntegration,
+  decathlonIntegration,
+  hmIntegration,
 ];
 
 export * from './types';
+export * from './electroplanet';
+export * from './jumia';
+export * from './marjane';
+export * from './bim';
+export * from './decathlon';
+export * from './hm';

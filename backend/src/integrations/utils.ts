@@ -1,14 +1,9 @@
-import { MerchantFixture, merchantFixtures, merchantProfiles } from './fixtures/merchantData';
-import { MerchantIntegration, MerchantOffer } from './types';
+import { parseDocument, DomUtils } from 'htmlparser2';
+import { Element } from 'domhandler';
+import { merchantProfiles } from './fixtures/merchantData';
+import { MerchantIntegration, MerchantOffer, MerchantProfile } from './types';
 
-const LIVE_DATA_FLAG = 'USE_LIVE_MERCHANT_APIS';
-
-const fetchImpl: typeof fetch = (...args) => {
-  if (typeof fetch === 'undefined') {
-    throw new Error('Global fetch is not available');
-  }
-  return fetch(...args);
-};
+type MerchantId = keyof typeof merchantProfiles;
 
 export const normalizeText = (value: string) =>
   value
@@ -18,112 +13,274 @@ export const normalizeText = (value: string) =>
 
 export const normalizeQuery = (query: string) => normalizeText(query.trim());
 
-export const filterFixturesByQuery = (merchantId: string, query: string): MerchantFixture[] => {
-  const fixtures = merchantFixtures[merchantId] ?? [];
-  if (!query) {
-    return fixtures;
+export const delay = (ms: number) =>
+  new Promise<void>((resolve) => {
+    if (ms <= 0) {
+      resolve();
+      return;
+    }
+    setTimeout(resolve, ms);
+  });
+
+const parseNumber = (value?: string) => {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const parseKeyValuePairs = (input?: string) => {
+  if (!input) {
+    return {} as Record<string, string>;
   }
 
-  const normalizedQuery = normalizeQuery(query);
-  return fixtures.filter((item) => {
-    const haystack = normalizeText(
-      [item.slug, item.title, item.brand, item.category, ...(item.keywords ?? [])].join(' ')
-    );
-    return normalizedQuery
-      .split(/\s+/)
-      .filter(Boolean)
-      .every((term) => haystack.includes(term));
-  });
+  try {
+    const parsed = JSON.parse(input) as Record<string, unknown>;
+    if (parsed && typeof parsed === 'object') {
+      return Object.fromEntries(
+        Object.entries(parsed).map(([key, value]) => [key, String(value)])
+      );
+    }
+  } catch (error) {
+    // ignore JSON parse errors and fallback to manual parsing
+  }
+
+  const result: Record<string, string> = {};
+  const segments = input.split(/[;,]/);
+  for (const segment of segments) {
+    const [rawKey, ...rest] = segment.split(/[:=]/);
+    const key = rawKey?.trim();
+    const value = rest.join('=').trim();
+    if (key) {
+      result[key] = value;
+    }
+  }
+  return result;
 };
 
-export const shouldUseLiveData = () => process.env[LIVE_DATA_FLAG] === 'true';
-
-const buildFixtureHtml = (merchantId: string, fixtures: MerchantFixture[]) => {
-  const merchant = merchantProfiles[merchantId];
-  const articles = fixtures
-    .map((item) => `
-      <article class="product-card" data-merchant-id="${merchant.id}" data-merchant-name="${merchant.name}" data-merchant-url="${merchant.url}" data-merchant-logo="${merchant.logoUrl ?? ''}" data-product-id="${item.productId}" data-product-slug="${item.slug}" data-product-url="${item.url}" data-price="${item.price}" data-currency="${item.currency}" data-shipping-fee="${item.shippingFee ?? ''}" data-availability="${item.availability}">
-        <h3 class="product-title">${item.title}</h3>
-        <span class="product-brand">${item.brand}</span>
-        <span class="product-category">${item.category}</span>
-        <img class="product-image" src="${item.image}" alt="${item.title}" />
-      </article>
-    `)
-    .join('');
-
-  return `<section class="catalog">${articles}</section>`;
+const parseQueryParams = (input?: string) => {
+  const entries = parseKeyValuePairs(input);
+  return Object.fromEntries(
+    Object.entries(entries).map(([key, value]) => [key, decodeURIComponent(value)])
+  );
 };
 
-const attributePattern = /([a-zA-Z0-9-:]+)="([^"]*)"/g;
+export interface MerchantHttpConfig {
+  searchUrl: string;
+  queryParam: string;
+  headers: Record<string, string>;
+  staticParams: Record<string, string>;
+  delayMs?: number;
+  timeoutMs?: number;
+  currency: string;
+  origin: string;
+}
 
-const extractAttributes = (fragment: string) => {
-  const attributes: Record<string, string> = {};
-  fragment.replace(attributePattern, (_, key, value) => {
-    attributes[key] = value;
-    return '';
-  });
-  return attributes;
+const ensureUrl = (value: string): URL => {
+  try {
+    return new URL(value);
+  } catch (error) {
+    throw new Error(`Invalid URL provided for merchant integration: ${value}`);
+  }
 };
 
-const extractText = (html: string, selector: string) => {
-  const regex = new RegExp(`<${selector}[^>]*>([\\s\\S]*?)<\\/${selector}>`, 'i');
-  const match = regex.exec(html);
-  return match ? match[1].trim() : '';
+export const getMerchantHttpConfig = (
+  merchantId: MerchantId,
+  defaults: Pick<MerchantHttpConfig, 'searchUrl' | 'queryParam' | 'currency'>
+): MerchantHttpConfig => {
+  const prefix = merchantId.toUpperCase();
+  const searchUrl = process.env[`${prefix}_SEARCH_URL`] ?? defaults.searchUrl;
+  const queryParam = process.env[`${prefix}_QUERY_PARAM`] ?? defaults.queryParam;
+  const currency = process.env[`${prefix}_CURRENCY`] ?? defaults.currency;
+  const headers = parseKeyValuePairs(process.env[`${prefix}_HEADERS`]);
+  const staticParams = parseQueryParams(process.env[`${prefix}_STATIC_PARAMS`]);
+  const delayMs = parseNumber(process.env[`${prefix}_DELAY_MS`]);
+  const timeoutMs = parseNumber(process.env[`${prefix}_TIMEOUT_MS`]);
+
+  const url = ensureUrl(searchUrl);
+
+  return {
+    searchUrl: url.toString(),
+    queryParam,
+    currency,
+    headers,
+    staticParams,
+    delayMs,
+    timeoutMs,
+    origin: url.origin,
+  };
 };
 
-const extractImageSrc = (html: string) => {
-  const match = /<img[^>]*class="product-image"[^>]*src="([^"]*)"/i.exec(html);
-  return match ? match[1] : undefined;
+export const buildSearchUrl = (
+  baseUrl: string,
+  queryParam: string,
+  query: string,
+  staticParams: Record<string, string>
+) => {
+  const url = ensureUrl(baseUrl);
+  url.searchParams.set(queryParam, query);
+  for (const [key, value] of Object.entries(staticParams)) {
+    if (!url.searchParams.has(key)) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return url.toString();
 };
 
-export const parseOffersFromHtml = (merchantId: string, html: string): MerchantOffer[] => {
-  const merchant = merchantProfiles[merchantId];
+export const fetchWithConfig = async (
+  url: string,
+  options: { headers?: Record<string, string>; timeoutMs?: number } = {}
+) => {
+  const controller = options.timeoutMs ? new AbortController() : undefined;
+  const timeoutId = options.timeoutMs
+    ? setTimeout(() => controller?.abort(), options.timeoutMs)
+    : undefined;
+
+  try {
+    const response = await fetch(url, {
+      headers: options.headers,
+      signal: controller?.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Timeout after ${options.timeoutMs}ms for ${url}`);
+    }
+    throw error;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+export const parsePrice = (input?: string | null) => {
+  if (!input) {
+    return undefined;
+  }
+  const sanitized = input
+    .replace(/[^0-9,\.\-]/g, '')
+    .replace(/,/g, '.')
+    .replace(/\.(?=.*\.)/g, '');
+  const value = Number.parseFloat(sanitized);
+  return Number.isFinite(value) ? value : undefined;
+};
+
+const hasClass = (element: Element, className: string) => {
+  const classAttr = DomUtils.getAttributeValue(element, 'class');
+  if (!classAttr) {
+    return false;
+  }
+  return classAttr
+    .split(/\s+/)
+    .filter(Boolean)
+    .some((value) => value === className);
+};
+
+const findChild = (root: Element, tagName: string, className?: string) =>
+  DomUtils.findOne(
+    (element) => {
+      if (element.name !== tagName) {
+        return false;
+      }
+      if (!className) {
+        return true;
+      }
+      return hasClass(element, className);
+    },
+    root.children,
+    true
+  );
+
+const resolveUrl = (value: string | undefined, origin: string, fallback: string) => {
+  if (!value) {
+    return fallback;
+  }
+  try {
+    return new URL(value, origin).toString();
+  } catch (error) {
+    return fallback;
+  }
+};
+
+const slugify = (value: string) =>
+  normalizeText(value)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
+const parseAvailability = (value?: string | null) => {
+  if (!value) {
+    return 'unknown' as const;
+  }
+  const normalized = normalizeText(value);
+  if (normalized.includes('rupture') || normalized.includes('epuise') || normalized.includes('out')) {
+    return 'out_of_stock' as const;
+  }
+  if (normalized.includes('stock') || normalized.includes('available') || normalized.includes('disponible')) {
+    return 'in_stock' as const;
+  }
+  return 'unknown' as const;
+};
+
+export interface ParseProductCardsOptions {
+  profile: MerchantProfile;
+  currency: string;
+  origin: string;
+}
+
+export const parseProductCards = (
+  html: string,
+  options: ParseProductCardsOptions
+): MerchantOffer[] => {
+  const document = parseDocument(html);
+  const cards = DomUtils.findAll(
+    (element) => element.name === 'article' && hasClass(element, 'product-card'),
+    document.children
+  );
+
   const offers: MerchantOffer[] = [];
-  const articleRegex = /<article class="product-card"([^>]*)>([\s\S]*?)<\/article>/g;
-  let match: RegExpExecArray | null;
+  for (const card of cards) {
+    const productId = DomUtils.getAttributeValue(card, 'data-product-id');
+    const slugAttr = DomUtils.getAttributeValue(card, 'data-product-slug');
+    const titleFromNode = findChild(card, 'h3', 'product-title');
+    const title = titleFromNode ? DomUtils.textContent(titleFromNode).trim() : '';
+    const slug = slugAttr || slugify(title);
+    const priceAttr = DomUtils.getAttributeValue(card, 'data-price');
+    const price = parsePrice(priceAttr);
 
-  while ((match = articleRegex.exec(html)) !== null) {
-    const [, attributesRaw, body] = match;
-    const attributes = extractAttributes(attributesRaw);
-    const productId = attributes['data-product-id'];
-    const slug = attributes['data-product-slug'];
-    const price = Number(attributes['data-price']);
-    const currency = (attributes['data-currency'] ?? 'MAD').toUpperCase();
-    const shippingFeeAttr = attributes['data-shipping-fee'];
-    const shippingFee = shippingFeeAttr ? Number(shippingFeeAttr) : undefined;
-    const availabilityAttr = attributes['data-availability'];
-    const availability = availabilityAttr === 'out_of_stock'
-      ? 'out_of_stock'
-      : availabilityAttr === 'in_stock'
-      ? 'in_stock'
-      : 'unknown';
-
-    const title = extractText(body, 'h3');
-    const brandMatch = /<span class="product-brand">([\s\S]*?)<\/span>/i.exec(body);
-    const brand = brandMatch ? brandMatch[1].trim() : '';
-    const categoryMatch = /<span class="product-category">([\s\S]*?)<\/span>/i.exec(body);
-    const category = categoryMatch ? categoryMatch[1].trim() : '';
-    const image = extractImageSrc(body);
-    const url = attributes['data-product-url'] ?? merchant.url;
-
-    if (!productId || !slug || !title || Number.isNaN(price)) {
+    if (!productId || !slug || !title || typeof price === 'undefined') {
       continue;
     }
 
+    const brandNode = findChild(card, 'span', 'product-brand');
+    const categoryNode = findChild(card, 'span', 'product-category');
+    const shippingAttr = DomUtils.getAttributeValue(card, 'data-shipping-fee');
+    const shippingFee = parsePrice(shippingAttr);
+    const availabilityAttr = DomUtils.getAttributeValue(card, 'data-availability');
+    const availability = parseAvailability(availabilityAttr);
+    const currencyAttr = DomUtils.getAttributeValue(card, 'data-currency');
+
+    const imageNode = findChild(card, 'img');
+    const image = imageNode
+      ? DomUtils.getAttributeValue(imageNode, 'src') || DomUtils.getAttributeValue(imageNode, 'data-src')
+      : undefined;
+    const url = DomUtils.getAttributeValue(card, 'data-product-url');
+
     offers.push({
-      offerId: `${merchant.id}-${productId}`,
-      merchant,
+      offerId: `${options.profile.id}-${productId}`,
+      merchant: options.profile,
       productId,
       slug,
       title,
-      brand: brand || undefined,
-      category: category || undefined,
-      image,
+      brand: brandNode ? DomUtils.textContent(brandNode).trim() || undefined : undefined,
+      category: categoryNode ? DomUtils.textContent(categoryNode).trim() || undefined : undefined,
+      image: image ? resolveUrl(image, options.origin, options.profile.url) : undefined,
       price,
-      currency,
-      shippingFee,
+      currency: (currencyAttr ?? options.currency).toUpperCase(),
+      shippingFee: typeof shippingFee === 'number' ? shippingFee : undefined,
       availability,
-      url,
+      url: resolveUrl(url, options.origin, options.profile.url),
       scrapedAt: new Date().toISOString(),
     });
   }
@@ -131,36 +288,74 @@ export const parseOffersFromHtml = (merchantId: string, html: string): MerchantO
   return offers;
 };
 
-export const fetchHtmlForMerchant = async (
-  merchantId: string,
-  searchUrl: string,
-  query: string
-): Promise<string> => {
-  if (shouldUseLiveData()) {
-    const response = await fetchImpl(`${searchUrl}${encodeURIComponent(query)}`);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+export const createRateLimiter = (minimumIntervalMs: number) => {
+  const lastInvocations = new Map<string, number>();
+  return async (key: string) => {
+    if (minimumIntervalMs <= 0) {
+      lastInvocations.set(key, Date.now());
+      return;
     }
-    return await response.text();
-  }
-
-  const fixtures = filterFixturesByQuery(merchantId, query);
-  return buildFixtureHtml(merchantId, fixtures);
+    const now = Date.now();
+    const last = lastInvocations.get(key) ?? 0;
+    const delta = now - last;
+    if (delta < minimumIntervalMs) {
+      await delay(minimumIntervalMs - delta);
+    }
+    lastInvocations.set(key, Date.now());
+  };
 };
 
-export const createIntegrationFromFixtures = (
-  merchantId: keyof typeof merchantFixtures,
-  label: string,
-  searchUrl: string
+export interface ProductCardIntegrationOptions {
+  merchantId: MerchantId;
+  label: string;
+  defaultSearchUrl: string;
+  defaultQueryParam?: string;
+  defaultCurrency?: string;
+}
+
+export const createProductCardIntegration = (
+  options: ProductCardIntegrationOptions
 ): MerchantIntegration => {
-  const profile = merchantProfiles[merchantId];
+  const profile = merchantProfiles[options.merchantId];
+  const defaultQueryParam = options.defaultQueryParam ?? 'q';
+  const defaultCurrency = options.defaultCurrency ?? 'MAD';
+
   return {
-    id: merchantId,
-    label,
+    id: profile.id,
+    label: options.label,
     profile,
     async search(query: string) {
-      const html = await fetchHtmlForMerchant(merchantId, searchUrl, query);
-      return parseOffersFromHtml(merchantId, html);
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) {
+        return [];
+      }
+
+      const config = getMerchantHttpConfig(options.merchantId, {
+        searchUrl: options.defaultSearchUrl,
+        queryParam: defaultQueryParam,
+        currency: defaultCurrency,
+      });
+
+      if (config.delayMs) {
+        await delay(config.delayMs);
+      }
+
+      const url = buildSearchUrl(config.searchUrl, config.queryParam, trimmedQuery, config.staticParams);
+      const response = await fetchWithConfig(url, {
+        headers: config.headers,
+        timeoutMs: config.timeoutMs,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} when fetching ${profile.id} catalogue`);
+      }
+
+      const html = await response.text();
+      return parseProductCards(html, {
+        profile,
+        currency: config.currency,
+        origin: config.origin,
+      });
     },
   };
 };

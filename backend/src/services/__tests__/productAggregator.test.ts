@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ProductAggregator } from '../productAggregator';
 import type { MerchantIntegration, MerchantOffer, MerchantProfile } from '../../integrations';
+import { electroplanetIntegration } from '../../integrations/electroplanet';
+import { jumiaIntegration } from '../../integrations/jumia';
 
 const createOffer = (overrides: Partial<MerchantOffer> = {}): MerchantOffer => {
   const merchant: MerchantProfile = overrides.merchant ?? {
@@ -157,4 +159,108 @@ test('captures integration errors without stopping other connectors', async () =
   assert.equal(errors[0].merchantId, 'failing');
   assert.equal(products.length, 1);
   assert.equal(products[0].slug, 'playstation-5-slim');
+});
+
+test('fetches offers from HTTP integrations using mocks', async (t) => {
+  const electroplanetHtml = `
+    <section class="catalog">
+      <article class="product-card"
+        data-product-id="iphone-ep"
+        data-product-slug="iphone-15-pro"
+        data-product-url="/iphone-15-pro"
+        data-price="13349"
+        data-currency="MAD"
+        data-shipping-fee="0"
+        data-availability="in_stock">
+        <h3 class="product-title">Apple iPhone 15 Pro</h3>
+        <span class="product-brand">Apple</span>
+        <span class="product-category">Smartphones</span>
+        <img src="/images/iphone-15-pro.jpg" alt="Apple iPhone 15 Pro" />
+      </article>
+    </section>
+  `;
+
+  const jumiaHtml = `
+    <section class="catalog">
+      <article class="product-card"
+        data-product-id="iphone-jumia"
+        data-product-slug="iphone-15-pro"
+        data-product-url="https://www.jumia.ma/iphone-15-pro"
+        data-price="13599"
+        data-currency="MAD"
+        data-shipping-fee="49"
+        data-availability="in_stock">
+        <h3 class="product-title">Apple iPhone 15 Pro 256GB</h3>
+        <span class="product-brand">Apple</span>
+        <span class="product-category">Smartphones</span>
+        <img src="https://www.jumia.ma/images/iphone-15-pro.jpg" alt="Apple iPhone 15 Pro" />
+      </article>
+    </section>
+  `;
+
+  const responses = new Map<string, string>();
+  const registerResponse = (baseUrl: string, queryParam: string, queryValue: string, body: string) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set(queryParam, queryValue);
+    responses.set(url.toString(), body);
+  };
+
+  registerResponse('https://electroplanet.test/catalog', 'q', 'iphone 15', electroplanetHtml);
+  registerResponse('https://jumia.test/search', 'q', 'iphone 15', jumiaHtml);
+
+  const originalFetch = globalThis.fetch;
+  const fetchMock = async (input: string | URL | Request) => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url);
+    const key = url.toString();
+    const body = responses.get(key);
+    if (!body) {
+      throw new Error(`Unexpected fetch call: ${key}`);
+    }
+    return new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    });
+  };
+
+  globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+  const previousElectroUrl = process.env.ELECTROPLANET_SEARCH_URL;
+  const previousJumiaUrl = process.env.JUMIA_SEARCH_URL;
+
+  process.env.ELECTROPLANET_SEARCH_URL = 'https://electroplanet.test/catalog';
+  process.env.JUMIA_SEARCH_URL = 'https://jumia.test/search';
+
+  t.after(() => {
+    if (typeof previousElectroUrl === 'undefined') {
+      delete process.env.ELECTROPLANET_SEARCH_URL;
+    } else {
+      process.env.ELECTROPLANET_SEARCH_URL = previousElectroUrl;
+    }
+    if (typeof previousJumiaUrl === 'undefined') {
+      delete process.env.JUMIA_SEARCH_URL;
+    } else {
+      process.env.JUMIA_SEARCH_URL = previousJumiaUrl;
+    }
+    globalThis.fetch = originalFetch;
+  });
+
+  const aggregator = new ProductAggregator({
+    integrations: [electroplanetIntegration, jumiaIntegration],
+    cacheTtlMs: 0,
+    rateLimitMs: 0,
+  });
+
+  const { products, errors } = await aggregator.search('iphone 15');
+
+  assert.equal(errors.length, 0);
+  assert.equal(products.length, 1);
+
+  const [product] = products;
+  assert.equal(product.slug, 'iphone-15-pro');
+  assert.equal(product.offersCount, 2);
+  assert.equal(product.minPrice, 13349);
+  assert.equal(product.maxPrice, 13599);
+  assert.equal(product.offers[0].merchant.name, 'Electroplanet');
+  assert.equal(product.offers[1].merchant.name, 'Jumia');
+  assert.equal(product.offers[1].totalPrice, 13599 + 49);
 });

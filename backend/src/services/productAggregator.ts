@@ -1,7 +1,7 @@
 import LRUCache from 'lru-cache';
 import pLimit, { type Limit } from 'p-limit';
 import { createDefaultIntegrations, MerchantIntegration, MerchantOffer, MerchantProfile } from '../integrations';
-import { normalizeQuery } from '../integrations/utils';
+import { createRateLimiter, normalizeQuery } from '../integrations/utils';
 
 export interface AggregatedOffer {
   id: string;
@@ -120,15 +120,16 @@ export interface ProductAggregatorOptions {
 export class ProductAggregator {
   private readonly integrations: MerchantIntegration[];
   private readonly cache: LRUCache<string, AggregationResponse>;
-  private readonly lastInvocation = new Map<string, number>();
   private readonly rateLimitMs: number;
   private readonly limiter: Limit;
+  private readonly rateLimiter: (key: string) => Promise<void>;
 
   constructor(options: ProductAggregatorOptions = {}) {
     this.integrations = options.integrations ?? createDefaultIntegrations();
     const cacheTtlMs = options.cacheTtlMs ?? 1000 * 60 * 5;
     this.cache = new LRUCache({ max: 50, ttl: cacheTtlMs });
     this.rateLimitMs = options.rateLimitMs ?? 500;
+    this.rateLimiter = createRateLimiter(this.rateLimitMs);
     const maxConcurrency = options.maxConcurrency ?? 3;
     this.limiter = pLimit(maxConcurrency);
   }
@@ -227,13 +228,7 @@ export class ProductAggregator {
   }
 
   private async applyRateLimit(merchantId: string) {
-    const now = Date.now();
-    const lastCall = this.lastInvocation.get(merchantId) ?? 0;
-    const delta = now - lastCall;
-    if (delta < this.rateLimitMs) {
-      await new Promise((resolve) => setTimeout(resolve, this.rateLimitMs - delta));
-    }
-    this.lastInvocation.set(merchantId, Date.now());
+    await this.rateLimiter(merchantId);
   }
 
   private normalizeOffers(offers: MerchantOffer[]): AggregatedProduct[] {
