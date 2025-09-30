@@ -11,11 +11,13 @@
 
 ### Implémentées
 
+
 - **Page d'accueil de démonstration** avec moteur de recherche et suggestions pré-remplies pour explorer rapidement le catalogue mocké.
 - **Recherche de produits** via une API Express qui renvoie des données de démonstration (mock) selon le terme recherché.
 - **Tri des résultats** par pertinence, prix croissant/décroissant ou ordre alphabétique directement depuis l'interface React.
 - **Cartes produits** synthétiques présentant prix min/max, nombre d'offres et marchands fictifs.
 - **Interface responsive** réalisée avec Tailwind CSS et Create React App.
+
 
 ### En cours de conception
 
@@ -38,9 +40,11 @@
 
 ### Actuellement utilisées
 
+
 - **Frontend** : React 18, React Router DOM, TypeScript, Create React App (`react-scripts`), Tailwind CSS propulsé par PostCSS et Autoprefixer, Web Vitals.
 - **Backend** : Node.js 18, Express, TypeScript compilé avec `tsc`, serveur démarré en développement avec `tsx`, configuration via `dotenv`, données produits mockées en mémoire.
 - **Outils de monorepo** : NPM Workspaces, scripts `concurrently` pour lancer front et back en parallèle, Husky prêt pour automatiser les hooks Git.
+
 
 ### Vision cible
 
@@ -59,8 +63,8 @@
 
 2. **Configurer l'environnement**
    ```bash
-   cp .env.example .env
-   # Éditer .env avec vos configurations
+   cp backend/.env.example backend/.env
+   # Éditer backend/.env avec vos configurations (PORT, DATABASE_URL)
    ```
 
 3. **Installer les dépendances**
@@ -77,6 +81,23 @@
    ```bash
    npm run dev
    ```
+
+## 🗃️ Base de données & Prisma
+
+Une stack PostgreSQL + Prisma est désormais utilisée pour persister les produits, marchands et offres. Après avoir démarré PostgreSQL (via `docker-compose` ou votre instance locale), exécutez les commandes suivantes dans le dossier `backend` :
+
+```bash
+# Générer/mettre à jour le client Prisma
+npm run prisma:generate
+
+# Appliquer la migration initiale
+npm run prisma:migrate -- --name init
+
+# Insérer des données de démonstration (marchands marocains et offres)
+npm run db:seed
+```
+
+> ℹ️ La commande `npm run db:seed` injecte plusieurs offres issues de marchands marocains comme Electro Planet, Microchoix et Jumia afin de disposer d'un catalogue exploitable immédiatement dans le frontend.
 
 ## 📱 Accès
 

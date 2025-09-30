@@ -19,6 +19,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showDiscount 
     ? Math.round(((product.maxPrice - product.minPrice) / product.maxPrice) * 100)
     : 0;
 
+  const bestOffer = product.offers && product.offers.length > 0
+    ? product.offers.reduce((best, offer) => {
+        const bestTotal = best ? best.totalPrice : Number.POSITIVE_INFINITY;
+        return offer.totalPrice < bestTotal ? offer : best;
+      }, product.offers[0])
+    : undefined;
+
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden group">
       <div className="relative h-48 bg-gray-100 overflow-hidden">
@@ -56,8 +63,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showDiscount 
             <span className="text-sm text-gray-400 line-through">{formatPrice(product.maxPrice)}</span>
           )}
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-          <span>🏪 {product.offersCount} {product.offersCount > 1 ? 'offres' : 'offre'}</span>
+        <div className="space-y-2 text-xs text-gray-600 mb-3">
+          <div className="flex items-center justify-between">
+            <span>🏪 {product.offersCount} {product.offersCount > 1 ? 'offres' : 'offre'}</span>
+            {bestOffer?.merchant?.name && (
+              <span className="text-gray-500">Meilleur prix : {bestOffer.merchant.name}</span>
+            )}
+          </div>
+          {bestOffer && (
+            <div className="flex items-center justify-between">
+              <span>🚚 Livraison</span>
+              <span className="text-gray-700">
+                {bestOffer.shippingFee != null
+                  ? bestOffer.shippingFee > 0
+                    ? `${formatPrice(bestOffer.shippingFee)} supplémentaires`
+                    : 'Offerte'
+                  : 'NC'}
+              </span>
+            </div>
+          )}
         </div>
         <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
           Voir les offres
