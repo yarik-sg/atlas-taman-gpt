@@ -1,4 +1,5 @@
 import pLimit from 'p-limit';
+import { LRUCache } from 'lru-cache';
 import { createDefaultIntegrations, MerchantIntegration, MerchantOffer, MerchantProfile } from '../integrations';
 import { createRateLimiter, normalizeQuery } from '../integrations/utils';
 
@@ -116,18 +117,9 @@ export interface ProductAggregatorOptions {
   integrations?: MerchantIntegration[];
 }
 
-interface SimpleCache<K, V> {
-  get(key: K): V | undefined;
-  set(key: K, value: V): void;
-}
-
-const { LRUCache } = require('lru-cache') as {
-  LRUCache: new <K, V>(options: { max: number; ttl: number }) => SimpleCache<K, V>;
-};
-
 export class ProductAggregator {
   private readonly integrations: MerchantIntegration[];
-  private readonly cache: SimpleCache<string, AggregationResponse>;
+  private readonly cache: LRUCache<string, AggregationResponse>;
   private readonly rateLimitMs: number;
   private readonly limiter: ReturnType<typeof pLimit>;
   private readonly rateLimiter: (key: string) => Promise<void>;
@@ -135,7 +127,7 @@ export class ProductAggregator {
   constructor(options: ProductAggregatorOptions = {}) {
     this.integrations = options.integrations ?? createDefaultIntegrations();
     const cacheTtlMs = options.cacheTtlMs ?? 1000 * 60 * 5;
-    this.cache = new LRUCache({ max: 50, ttl: cacheTtlMs });
+    this.cache = new LRUCache<string, AggregationResponse>({ max: 50, ttl: cacheTtlMs });
     this.rateLimitMs = options.rateLimitMs ?? 500;
     this.rateLimiter = createRateLimiter(this.rateLimitMs);
     const maxConcurrency = options.maxConcurrency ?? 3;
