@@ -143,31 +143,17 @@ export const marjaneIntegration: MerchantIntegration = {
     }
 
     const url = buildSearchUrl(config.searchUrl, config.queryParam, trimmedQuery, config.staticParams);
-    const { response, failed, fallbackHtml } = await fetchWithConfig(url, {
+    const response = await fetchWithConfig(url, {
       headers: config.headers,
       timeoutMs: config.timeoutMs,
       proxyUrl: config.proxyUrl,
     });
 
-    let html: string | undefined;
-
-    if (failed) {
-      if (!fallbackHtml) {
-        throw new Error(
-          `HTTP ${response.status} when fetching ${profile.id} catalogue (challenge not bypassed)`
-        );
-      }
-      html = fallbackHtml;
-    } else {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} when fetching ${profile.id} catalogue`);
-      }
-      html = await response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} when fetching ${profile.id} catalogue`);
     }
 
-    if (!html) {
-      throw new Error(`Empty response when fetching ${profile.id} catalogue`);
-    }
+    const html = await response.text();
     return parseMarjaneOffers(html, { origin: config.origin, currency: config.currency });
   },
 };
