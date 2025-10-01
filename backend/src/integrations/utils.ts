@@ -1,6 +1,26 @@
 import { solveMerchantRequest } from './cloudflareBypass';
 import { merchantProfiles } from './fixtures/merchantData';
 
+import type { Dispatcher } from 'undici';
+
+type ProxyAgentConstructor = new (proxyUrl: string) => Dispatcher;
+
+let proxyAgentCtor: ProxyAgentConstructor | undefined;
+
+const getProxyAgent = (): ProxyAgentConstructor => {
+  if (!proxyAgentCtor) {
+    try {
+      const undici = require('undici') as { ProxyAgent: ProxyAgentConstructor };
+      proxyAgentCtor = undici.ProxyAgent;
+    } catch (error) {
+      throw new Error(
+        'Proxy support requires the "undici" package. Install it with `npm install undici` before using *_PROXY_URL`.'
+      );
+    }
+  }
+  return proxyAgentCtor;
+};
+
 type MerchantId = keyof typeof merchantProfiles;
 
 export const normalizeText = (value: string) =>
@@ -73,6 +93,7 @@ export interface MerchantHttpConfig {
   timeoutMs?: number;
   currency: string;
   origin: string;
+  proxyUrl?: string;
 }
 
 const ensureUrl = (value: string): URL => {
@@ -95,6 +116,8 @@ export const getMerchantHttpConfig = (
   const staticParams = parseQueryParams(process.env[`${prefix}_STATIC_PARAMS`]);
   const delayMs = parseNumber(process.env[`${prefix}_DELAY_MS`]);
   const timeoutMs = parseNumber(process.env[`${prefix}_TIMEOUT_MS`]);
+  const proxyUrlValue = process.env[`${prefix}_PROXY_URL`]?.trim();
+  const proxyUrl = proxyUrlValue ? proxyUrlValue : undefined;
 
   const url = ensureUrl(searchUrl);
 
@@ -107,6 +130,7 @@ export const getMerchantHttpConfig = (
     delayMs,
     timeoutMs,
     origin: url.origin,
+    proxyUrl,
   };
 };
 
@@ -224,8 +248,14 @@ const shouldAttemptBypass = async (response: Response) => {
 
 export const fetchWithConfig = async (
   url: string,
-  options: { headers?: Record<string, string>; timeoutMs?: number } = {}
-): Promise<FetchWithConfigResult> => {
+
+  options: {
+    headers?: Record<string, string>;
+    timeoutMs?: number;
+    proxyUrl?: string;
+  } = {}
+) => {
+
   const controller = options.timeoutMs ? new AbortController() : undefined;
   const timeoutId = options.timeoutMs
     ? setTimeout(() => controller?.abort(), options.timeoutMs)
@@ -237,12 +267,18 @@ export const fetchWithConfig = async (
       options.headers ?? {}
     );
 
-    const fetchOptions: RequestInit = {
+    const fetchOptions: RequestInit & { dispatcher?: Dispatcher } = {
       headers: mergedHeaders,
     };
 
     if (controller) {
       fetchOptions.signal = controller.signal;
+    }
+
+    if (options.proxyUrl) {
+      const ProxyAgent = getProxyAgent();
+      const proxyAgent = new ProxyAgent(options.proxyUrl);
+      fetchOptions.dispatcher = proxyAgent;
     }
 
     const response = await fetch(url, fetchOptions);

@@ -140,6 +140,7 @@ export const jumiaIntegration: MerchantIntegration = {
     const { response, failed, fallbackHtml } = await fetchWithConfig(url, {
       headers: config.headers,
       timeoutMs: config.timeoutMs,
+      proxyUrl: config.proxyUrl,
     });
 
     let html: string | undefined;
