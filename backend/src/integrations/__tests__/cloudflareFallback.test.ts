@@ -73,6 +73,64 @@ test('fetchWithConfig utilise le fallback Cloudflare en cas de blocage', async (
   }
 });
 
+test('fetchWithConfig utilise le HTML brut si le solver renvoie un JSON invalide', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnv = {
+    url: process.env.CLOUDFLARE_FALLBACK_URL,
+    apiKey: process.env.CLOUDFLARE_FALLBACK_API_KEY,
+    timeout: process.env.CLOUDFLARE_FALLBACK_TIMEOUT_MS,
+  };
+
+  const requests: Array<{
+    input: Parameters<typeof fetch>[0];
+    init?: Parameters<typeof fetch>[1];
+  }> = [];
+
+  process.env.CLOUDFLARE_FALLBACK_URL = 'https://solver.local/solve';
+  process.env.CLOUDFLARE_FALLBACK_API_KEY = undefined;
+  process.env.CLOUDFLARE_FALLBACK_TIMEOUT_MS = undefined;
+
+  const fallbackHtml = '<html>fallback</html>';
+
+  globalThis.fetch = (async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1]
+  ) => {
+    requests.push({ input, init });
+
+    if (typeof input === 'string' && input.startsWith('https://example.com')) {
+      return new Response(CLOUDFLARE_HTML, {
+        status: 503,
+        headers: { 'content-type': 'text/html' },
+      });
+    }
+
+    if (input === 'https://solver.local/solve') {
+      return new Response(fallbackHtml, {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    throw new Error(`Unexpected request to ${String(input)}`);
+  }) as typeof fetch;
+
+  try {
+    const result = await fetchWithConfig('https://example.com/products', {});
+    assert.equal(result.wasBlocked, true);
+
+    const body = await result.response.text();
+    assert.equal(body, fallbackHtml);
+
+    assert.equal(requests.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.CLOUDFLARE_FALLBACK_URL = originalEnv.url;
+    process.env.CLOUDFLARE_FALLBACK_API_KEY = originalEnv.apiKey;
+    process.env.CLOUDFLARE_FALLBACK_TIMEOUT_MS = originalEnv.timeout;
+  }
+});
+
 test('electroplanetIntegration récupère le HTML du fallback Cloudflare', async () => {
   const originalFetch = globalThis.fetch;
   const originalEnv = {

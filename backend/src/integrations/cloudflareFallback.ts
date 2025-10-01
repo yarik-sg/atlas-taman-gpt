@@ -159,24 +159,25 @@ export const triggerCloudflareFallback = async (
     }
 
     const contentType = response.headers.get('content-type') ?? '';
+    const raw = await response.text();
     let html: string | undefined;
 
     if (/json/i.test(contentType)) {
       try {
-        const data = (await response.json()) as { html?: unknown };
+        const data = JSON.parse(raw) as { html?: unknown };
         if (typeof data?.html === 'string') {
           html = data.html;
         }
       } catch (error) {
-        return undefined;
+        html = undefined;
       }
     }
 
     if (!html) {
-      html = await response.text();
+      html = raw;
     }
 
-    if (!html) {
+    if (!html || html.trim().length === 0) {
       return undefined;
     }
 
