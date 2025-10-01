@@ -14,6 +14,12 @@ const CLOUDFLARE_HTML = `<!doctype html>
   </body>
 </html>`;
 
+const NESTED_SOLVER_RESPONSE = {
+  solution: {
+    response: '<html>ok</html>',
+  },
+};
+
 test('fetchWithConfig utilise le fallback Cloudflare en cas de blocage', async () => {
   const originalFetch = globalThis.fetch;
   const originalEnv = {
@@ -45,7 +51,7 @@ test('fetchWithConfig utilise le fallback Cloudflare en cas de blocage', async (
     }
 
     if (input === 'https://solver.local/solve') {
-      return new Response(JSON.stringify({ html: '<html>ok</html>' }), {
+      return new Response(JSON.stringify(NESTED_SOLVER_RESPONSE), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });

@@ -9,6 +9,55 @@ const CLOUD_FLARE_PATTERNS: RegExp[] = [
 
 const MAX_BODY_LENGTH = 64 * 1024;
 
+const SOLVER_HTML_KEYS = ['html', 'response'] as const;
+
+const extractHtmlFromSolverPayload = (payload: unknown): string | undefined => {
+  if (typeof payload === 'string') {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+
+  const visited = new Set<object>();
+
+  const search = (value: unknown): string | undefined => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const objectValue = value as object;
+    if (visited.has(objectValue)) {
+      return undefined;
+    }
+
+    visited.add(objectValue);
+
+    const record = value as Record<string, unknown>;
+
+    for (const key of SOLVER_HTML_KEYS) {
+      const candidate = record[key];
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate;
+      }
+    }
+
+    for (const nested of Object.values(record)) {
+      if (nested && typeof nested === 'object') {
+        const found = search(nested);
+        if (found) {
+          return found;
+        }
+      }
+    }
+
+    return undefined;
+  };
+
+  return search(payload);
+};
+
 export type CloudflareBlockReason = 'status_code' | 'html_marker';
 
 export interface CloudflareBlockDetection {
@@ -164,10 +213,8 @@ export const triggerCloudflareFallback = async (
 
     if (/json/i.test(contentType)) {
       try {
-        const data = JSON.parse(raw) as { html?: unknown };
-        if (typeof data?.html === 'string') {
-          html = data.html;
-        }
+        const data = JSON.parse(raw);
+        html = extractHtmlFromSolverPayload(data);
       } catch (error) {
         html = undefined;
       }
