@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ProductCard } from '../components/product/ProductCard';
 import { Product, IntegrationError, SearchMetadata } from '../types';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 export const SearchPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,6 +13,7 @@ export const SearchPage: React.FC = () => {
   const [metadata, setMetadata] = useState<SearchMetadata | null>(null);
   const [slowResponse, setSlowResponse] = useState(false);
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const searchProducts = useCallback(async (query: string, sortParam = sortBy) => {
     const trimmedQuery = query.trim();
@@ -64,11 +65,10 @@ export const SearchPage: React.FC = () => {
   }, [searchProducts]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const query = params.get('q') || '';
+    const query = searchParams.get('q') || '';
     setSearchQuery(query);
     searchProductsRef.current(query);
-  }, [location.search]);
+  }, [searchParams, location.search]);
 
   if (loading) {
     return (

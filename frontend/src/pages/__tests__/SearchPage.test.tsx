@@ -212,7 +212,7 @@ describe('SearchPage data flow', () => {
     container.remove();
   });
 
-  it('requests new results when the search query in the URL changes', async () => {
+  it('pushes a new search URL and triggers a second backend request with the new query', async () => {
     const firstPayload = {
       success: true,
       data: {
@@ -247,7 +247,7 @@ describe('SearchPage data flow', () => {
     expect(mockFetch.mock.calls[0][0]).toContain('q=ordinateur');
 
     await act(async () => {
-      await router.navigate('/search?q=telephone');
+      await router.navigate('/search?q=telephone', { replace: false });
       await flushPromises();
     });
 
