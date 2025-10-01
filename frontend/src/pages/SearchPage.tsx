@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ProductCard } from '../components/product/ProductCard';
 import { Product, IntegrationError, SearchMetadata } from '../types';
+import { useLocation } from 'react-router-dom';
 
 export const SearchPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,17 +12,9 @@ export const SearchPage: React.FC = () => {
   const [integrationErrors, setIntegrationErrors] = useState<IntegrationError[]>([]);
   const [metadata, setMetadata] = useState<SearchMetadata | null>(null);
   const [slowResponse, setSlowResponse] = useState(false);
+  const location = useLocation();
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const query = params.get('q') || '';
-    setSearchQuery(query);
-    if (query) {
-      searchProducts(query);
-    }
-  }, []);
-
-  const searchProducts = async (query: string, sortParam = sortBy) => {
+  const searchProducts = useCallback(async (query: string, sortParam = sortBy) => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
       setProducts([]);
@@ -29,6 +22,7 @@ export const SearchPage: React.FC = () => {
       setIntegrationErrors([]);
       setMetadata(null);
       setErrorMessage(null);
+      setSlowResponse(false);
       return;
     }
 
@@ -61,7 +55,20 @@ export const SearchPage: React.FC = () => {
       setSlowResponse(false);
       setLoading(false);
     }
-  };
+  }, [sortBy]);
+
+  const searchProductsRef = useRef(searchProducts);
+
+  useEffect(() => {
+    searchProductsRef.current = searchProducts;
+  }, [searchProducts]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('q') || '';
+    setSearchQuery(query);
+    searchProductsRef.current(query);
+  }, [location.search]);
 
   if (loading) {
     return (

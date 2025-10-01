@@ -1,5 +1,6 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { SearchPage } from '../SearchPage';
 
 const originalFetch = global.fetch;
@@ -83,13 +84,33 @@ function createProduct(overrides: Partial<TestProduct> = {}): TestProduct {
   };
 }
 
+function renderSearchPage(initialEntry = '/search?q=ordinateur') {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/search',
+        element: <SearchPage />,
+      },
+    ],
+    { initialEntries: [initialEntry] }
+  );
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(<RouterProvider router={router} />);
+  });
+
+  return { router, container, root };
+}
+
 describe('SearchPage data flow', () => {
   const mockFetch = jest.fn();
 
   beforeEach(() => {
     mockFetch.mockReset();
     (global as unknown as { fetch: typeof mockFetch }).fetch = mockFetch;
-    window.history.replaceState({}, '', '/');
   });
 
   afterEach(() => {
@@ -115,15 +136,7 @@ describe('SearchPage data flow', () => {
         json: async () => ({ success: true, data: { results: sortedResults, pagination: { total: 2 }, errors: [], metadata: baseMetadata } }),
       } as Response);
 
-    window.history.pushState({}, '', '/search?q=ordinateur');
-
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(<SearchPage />);
-    });
+    const { container, root } = renderSearchPage();
 
     await act(async () => {
       await flushPromises();
@@ -166,14 +179,9 @@ describe('SearchPage data flow', () => {
 
     mockFetch.mockResolvedValue({ ok: true, json: async () => responsePayload } as Response);
 
-    window.history.pushState({}, '', '/search?q=ordinateur');
-
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
+    const { container, root } = renderSearchPage();
 
     await act(async () => {
-      root.render(<SearchPage />);
       await flushPromises();
     });
 
@@ -189,19 +197,65 @@ describe('SearchPage data flow', () => {
   it('shows an error banner when the request fails', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
 
-    window.history.pushState({}, '', '/search?q=ordinateur');
-
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
+    const { container, root } = renderSearchPage();
 
     await act(async () => {
-      root.render(<SearchPage />);
       await flushPromises();
     });
 
     const alert = container.querySelector('.bg-red-50');
     expect(alert?.textContent).toContain('Veuillez réessayer');
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('requests new results when the search query in the URL changes', async () => {
+    const firstPayload = {
+      success: true,
+      data: {
+        results: [createProduct({ id: 'produit-a', name: 'Produit A' })],
+        pagination: { total: 1 },
+        errors: [],
+        metadata: baseMetadata,
+      },
+    };
+
+    const secondPayload = {
+      success: true,
+      data: {
+        results: [createProduct({ id: 'produit-b', name: 'Produit B' })],
+        pagination: { total: 1 },
+        errors: [],
+        metadata: baseMetadata,
+      },
+    };
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => firstPayload } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => secondPayload } as Response);
+
+    const { router, container, root } = renderSearchPage();
+
+    await act(async () => {
+      await flushPromises();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls[0][0]).toContain('q=ordinateur');
+
+    await act(async () => {
+      await router.navigate('/search?q=telephone');
+      await flushPromises();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[1][0]).toContain('q=telephone');
+
+    const heading = container.querySelector('h1');
+    expect(heading?.textContent).toContain('telephone');
 
     await act(async () => {
       root.unmount();
