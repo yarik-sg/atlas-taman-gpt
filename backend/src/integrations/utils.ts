@@ -1,3 +1,4 @@
+import { solveMerchantRequest } from './cloudflareBypass';
 import { merchantProfiles } from './fixtures/merchantData';
 
 import type { Dispatcher } from 'undici';
@@ -195,14 +196,66 @@ const mergeHeadersWithDefaults = (
   return merged;
 };
 
+const CLOUDFLARE_MARKERS = [
+  /cf-chl/i,
+  /attention required/i,
+  /cloudflare/i,
+  /verify you are human/i,
+  /just a moment/i,
+];
+
+export interface FetchWithConfigResult {
+  response: Response;
+  failed: boolean;
+  fallbackHtml?: string;
+}
+
+const shouldAttemptBypass = async (response: Response) => {
+  let cachedBody: string | undefined;
+  let bodyRead = false;
+
+  const readBody = async () => {
+    if (bodyRead) {
+      return cachedBody;
+    }
+    bodyRead = true;
+    try {
+      cachedBody = await response.clone().text();
+    } catch (error) {
+      cachedBody = undefined;
+    }
+    return cachedBody;
+  };
+
+  if (response.status === 403 || response.status === 503) {
+    const body = await readBody();
+    return { failed: true, body } as const;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('text/html')) {
+    return { failed: false, body: undefined } as const;
+  }
+
+  const body = await readBody();
+  if (!body) {
+    return { failed: false, body: undefined } as const;
+  }
+
+  const matchesChallenge = CLOUDFLARE_MARKERS.some((pattern) => pattern.test(body));
+  return { failed: matchesChallenge, body } as const;
+};
+
 export const fetchWithConfig = async (
   url: string,
+
   options: {
     headers?: Record<string, string>;
     timeoutMs?: number;
     proxyUrl?: string;
   } = {}
 ) => {
+
   const controller = options.timeoutMs ? new AbortController() : undefined;
   const timeoutId = options.timeoutMs
     ? setTimeout(() => controller?.abort(), options.timeoutMs)
@@ -229,7 +282,24 @@ export const fetchWithConfig = async (
     }
 
     const response = await fetch(url, fetchOptions);
-    return response;
+    const { failed, body } = await shouldAttemptBypass(response);
+
+    if (!failed) {
+      return { response, failed: false };
+    }
+
+    const fallbackHtml = await solveMerchantRequest({
+      url,
+      headers: mergedHeaders,
+      status: response.status,
+      challengeBody: body,
+    });
+
+    if (fallbackHtml) {
+      return { response, failed: true, fallbackHtml };
+    }
+
+    return { response, failed: true };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Timeout after ${options.timeoutMs}ms for ${url}`);
