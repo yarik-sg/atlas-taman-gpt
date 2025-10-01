@@ -148,6 +148,7 @@ export const hmIntegration: MerchantIntegration = {
     const response = await fetchWithConfig(url, {
       headers: config.headers,
       timeoutMs: config.timeoutMs,
+      proxyUrl: config.proxyUrl,
     });
 
     if (!response.ok) {
