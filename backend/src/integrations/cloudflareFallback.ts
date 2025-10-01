@@ -11,6 +11,29 @@ const MAX_BODY_LENGTH = 64 * 1024;
 
 const SOLVER_HTML_KEYS = ['html', 'response'] as const;
 
+const SOLVER_KNOWN_PATHS: ReadonlyArray<ReadonlyArray<string>> = [
+  ['solution', 'response'],
+  ['solution', 'html'],
+  ['result', 'html'],
+  ['result', 'response'],
+  ['html'],
+  ['response'],
+];
+
+const getValueAtPath = (value: unknown, path: readonly string[]): unknown => {
+  let current: unknown = value;
+
+  for (const segment of path) {
+    if (!current || typeof current !== 'object') {
+      return undefined;
+    }
+
+    current = (current as Record<string, unknown>)[segment];
+  }
+
+  return current;
+};
+
 const extractHtmlFromSolverPayload = (payload: unknown): string | undefined => {
   if (typeof payload === 'string') {
     return payload;
@@ -18,6 +41,13 @@ const extractHtmlFromSolverPayload = (payload: unknown): string | undefined => {
 
   if (!payload || typeof payload !== 'object') {
     return undefined;
+  }
+
+  for (const path of SOLVER_KNOWN_PATHS) {
+    const candidate = getValueAtPath(payload, path);
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate;
+    }
   }
 
   const visited = new Set<object>();
