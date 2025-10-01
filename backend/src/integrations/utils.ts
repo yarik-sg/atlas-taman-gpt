@@ -1,4 +1,9 @@
 import { merchantProfiles } from './fixtures/merchantData';
+import {
+  CloudflareFallbackOverrides,
+  detectCloudflareBlock,
+  triggerCloudflareFallback,
+} from './cloudflareFallback';
 
 import type { Dispatcher } from 'undici';
 
@@ -195,15 +200,23 @@ const mergeHeadersWithDefaults = (
   return merged;
 };
 
+export interface FetchWithConfigOptions {
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+  proxyUrl?: string;
+  cloudflareFallback?: CloudflareFallbackOverrides;
+}
+
+export interface FetchWithConfigResult {
+  response: Response;
+  wasBlocked: boolean;
+}
+
 export const fetchWithConfig = async (
   url: string,
 
-  options: {
-    headers?: Record<string, string>;
-    timeoutMs?: number;
-    proxyUrl?: string;
-  } = {}
-) => {
+  options: FetchWithConfigOptions = {}
+): Promise<FetchWithConfigResult> => {
 
 
   const controller = options.timeoutMs ? new AbortController() : undefined;
@@ -232,7 +245,28 @@ export const fetchWithConfig = async (
     }
 
     const response = await fetch(url, fetchOptions);
-    return response;
+
+    const detection = await detectCloudflareBlock(response.clone());
+
+    if (!detection.blocked) {
+      return { response, wasBlocked: false };
+    }
+
+    const fallbackResponse = await triggerCloudflareFallback(
+      {
+        url,
+        headers: mergedHeaders,
+        detection,
+        overrides: options.cloudflareFallback,
+      },
+      fetch
+    );
+
+    if (fallbackResponse) {
+      return { response: fallbackResponse, wasBlocked: true };
+    }
+
+    return { response, wasBlocked: true };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Timeout after ${options.timeoutMs}ms for ${url}`);

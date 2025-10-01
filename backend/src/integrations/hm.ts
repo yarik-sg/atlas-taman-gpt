@@ -145,7 +145,7 @@ export const hmIntegration: MerchantIntegration = {
     }
 
     const url = buildSearchUrl(config.searchUrl, config.queryParam, trimmedQuery, config.staticParams);
-    const response = await fetchWithConfig(url, {
+    const { response } = await fetchWithConfig(url, {
       headers: config.headers,
       timeoutMs: config.timeoutMs,
       proxyUrl: config.proxyUrl,
